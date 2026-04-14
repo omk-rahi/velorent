@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(xargs grep -l -i \"cashfree\\\\|digilocker\\\\|cashify\\\\|aadhaar\\\\|aadhar\")",
+      "WebFetch(domain:www.cashfree.com)",
+      "Bash(head -100 '/c/Users/omkar/Documents/velorent-host-native/app/\\(main\\)/bookings/_layout.tsx')",
+      "Bash(cat /c/Users/omkar/Documents/velorent-native/app/\\\\\\(main\\\\\\)/_layout.tsx)",
+      "Bash(find \"c:\\\\Users\\\\omkar\\\\Documents\\\\velorent-host-native\\\\app\\\\\\(auth\\)\" -type f)"
+    ]
+  }
+}
