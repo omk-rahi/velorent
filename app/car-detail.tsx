@@ -38,10 +38,8 @@ export default function CarDetail() {
   const insets = useSafeAreaInsets();
   const [showVerifyModal, setShowVerifyModal] = useState(false);
   const profile = useUser((s) => s.profile);
-  // const aadhaarVerified = profile?.aadhaar_verified === true;
-  // const dlVerified = profile?.dl_verified === true;
-  const aadhaarVerified = true;
-  const dlVerified = true;
+  const aadhaarVerified = profile?.aadhaar_verified === true;
+  const dlVerified = profile?.dl_verified === true;
 
   const handleBookNow = () => {
     if (!aadhaarVerified || !dlVerified) {
@@ -88,7 +86,7 @@ export default function CarDetail() {
   }
 
   const images = car.images?.map((img: any) => img.image_url) || [];
-  const pickupAddress = car.address?.[0];
+  const pickupAddress = Array.isArray(car.address) ? car.address[0] : car.address;
   const brand = (Array.isArray(car.brand) ? car.brand[0] : car.brand) as {
     name: string;
   };

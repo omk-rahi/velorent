@@ -27,14 +27,15 @@ import { VStack } from "@/components/ui/vstack";
 import { Colors } from "@/constants/theme";
 import { useBookingSteps } from "@/hooks/use-booking-steps";
 import {
+  TIME_SLOTS,
   buildMarkedDates,
   formatDateToISO,
   getAvailableTimeSlots,
   parseDateTime,
-  TIME_SLOTS,
 } from "@/lib/booking-utils";
 import { useBookingStore } from "@/store/use-booking-store";
 import { useQuery } from "@tanstack/react-query";
+import { Car, Clock, IndianRupee } from "lucide-react-native";
 
 const DAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 const MONTH_LABELS = [
@@ -87,7 +88,10 @@ function findFirstAvailable(
 function findFirstAvailable24HourWindow(
   minISO: string,
   availability: any[],
-): { pickup: { iso: string; time: string }; dropoff: { iso: string; time: string } } | null {
+): {
+  pickup: { iso: string; time: string };
+  dropoff: { iso: string; time: string };
+} | null {
   const pickup = findFirstAvailable(minISO, availability);
   if (!pickup) return null;
 
@@ -362,13 +366,22 @@ export default function DatetimeStep() {
 
   const costs = useMemo(() => {
     if (!car) return null;
+
     const pickup = parseDateTime(pickupDate, pickupTime);
     const dropoff = parseDateTime(dropoffDate, dropoffTime);
+
     const hours = Math.max(
       0,
       Math.ceil((dropoff.getTime() - pickup.getTime()) / 3_600_000),
     );
-    return { hours, rentalCost: car.hourly_price * hours };
+
+    const allowedKm = Math.floor((300 / 24) * hours);
+
+    return {
+      hours,
+      rentalCost: car.hourly_price * hours,
+      allowedKm,
+    };
   }, [car, pickupDate, pickupTime, dropoffDate, dropoffTime]);
 
   const tomorrowISO = new Date(Date.now() + 86_400_000)
@@ -398,12 +411,14 @@ export default function DatetimeStep() {
 
     const pickupISOCurrent = formatDateToISO(pickupDate);
     const dropoffISOCurrent = formatDateToISO(dropoffDate);
-    const pickupValid = getAvailableTimeSlots(pickupISOCurrent, availability).includes(
-      pickupTime,
-    );
-    const dropoffValid = getAvailableTimeSlots(dropoffISOCurrent, availability).includes(
-      dropoffTime,
-    );
+    const pickupValid = getAvailableTimeSlots(
+      pickupISOCurrent,
+      availability,
+    ).includes(pickupTime);
+    const dropoffValid = getAvailableTimeSlots(
+      dropoffISOCurrent,
+      availability,
+    ).includes(dropoffTime);
 
     const pickupDT = parseDateTime(pickupDate, pickupTime);
     const dropoffDT = parseDateTime(dropoffDate, dropoffTime);
@@ -411,7 +426,8 @@ export default function DatetimeStep() {
       (dropoffDT.getTime() - pickupDT.getTime()) / (1000 * 60 * 60),
     );
     const hasPastPickup = pickupISOCurrent < tomorrowISO;
-    const needsInit = !pickupValid || !dropoffValid || hasPastPickup || durationHours <= 0;
+    const needsInit =
+      !pickupValid || !dropoffValid || hasPastPickup || durationHours <= 0;
 
     if (!needsInit) return;
 
@@ -743,42 +759,128 @@ export default function DatetimeStep() {
                 <View
                   style={{
                     backgroundColor: Colors.light.card,
-                    borderRadius: 16,
+                    borderRadius: 18,
                     borderWidth: 1,
                     borderColor: Colors.light.cardBorder,
-                    paddingHorizontal: 14,
-                    paddingVertical: 12,
+                    padding: 16,
+                    gap: 14,
                   }}
                 >
-                  <HStack
+                  <View
                     style={{
-                      justifyContent: "space-between",
+                      flexDirection: "row",
                       alignItems: "center",
+                      gap: 10,
                     }}
                   >
-                    <Text
+                    <View
                       style={{
-                        fontSize: 12,
-                        fontWeight: "700",
-                        color: Colors.light.iconMuted,
-                        letterSpacing: 0.6,
+                        width: 36,
+                        height: 36,
+                        borderRadius: 10,
+                        backgroundColor: Colors.light.tint + "15",
+                        alignItems: "center",
+                        justifyContent: "center",
                       }}
                     >
-                      SELECTED HOURS
-                    </Text>
-                    <Text
+                      <Clock size={18} color={Colors.light.tint} />
+                    </View>
+
+                    <View>
+                      <Text
+                        style={{ fontSize: 11, color: Colors.light.iconMuted }}
+                      >
+                        Duration
+                      </Text>
+                      <Text
+                        style={{
+                          fontSize: 15,
+                          fontWeight: "700",
+                          color: Colors.light.text,
+                        }}
+                      >
+                        {costs.hours} Hours
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: 10,
+                    }}
+                  >
+                    <View
                       style={{
-                        fontSize: 16,
-                        fontWeight: "800",
-                        color: Colors.light.text,
+                        width: 36,
+                        height: 36,
+                        borderRadius: 10,
+                        backgroundColor: Colors.light.success + "15",
+                        alignItems: "center",
+                        justifyContent: "center",
                       }}
                     >
-                      {costs.hours} {costs.hours === 1 ? "hour" : "hours"}
-                    </Text>
-                  </HStack>
+                      <Car size={18} color={Colors.light.success} />
+                    </View>
+
+                    <View>
+                      <Text
+                        style={{ fontSize: 11, color: Colors.light.iconMuted }}
+                      >
+                        Distance Limit
+                      </Text>
+                      <Text
+                        style={{
+                          fontSize: 15,
+                          fontWeight: "700",
+                          color: Colors.light.text,
+                        }}
+                      >
+                        {costs.allowedKm} km without fuel
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: 10,
+                    }}
+                  >
+                    <View
+                      style={{
+                        width: 36,
+                        height: 36,
+                        borderRadius: 10,
+                        backgroundColor: Colors.light.warning + "15",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <IndianRupee size={18} color={Colors.light.warning} />
+                    </View>
+
+                    <View style={{ flex: 1 }}>
+                      <Text
+                        style={{ fontSize: 11, color: Colors.light.iconMuted }}
+                      >
+                        Extra Charges
+                      </Text>
+                      <Text
+                        style={{
+                          fontSize: 13,
+                          color: Colors.light.text,
+                          fontWeight: "600",
+                        }}
+                      >
+                        ₹8/km + ₹125/hour
+                      </Text>
+                    </View>
+                  </View>
                 </View>
               )}
-
               {/* Minimum warning */}
               {costs && costs.hours > 0 && costs.hours < 6 && (
                 <HStack

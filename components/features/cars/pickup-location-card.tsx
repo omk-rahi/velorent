@@ -83,7 +83,7 @@ export function PickupLocationCard({ address, latitude, longitude }: Props) {
 
   const displayAddress = address
     ? `${address.address_line1}, ${address.city}, ${address.state} - ${address.pincode}`
-    : "Riverfront Road, Ahmedabad";
+    : "Pickup location details not provided";
 
   const distanceLabel =
     distance !== null
