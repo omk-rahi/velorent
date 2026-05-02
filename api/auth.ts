@@ -25,7 +25,7 @@ export const register = async ({
       data: {
         full_name: fullName,
         email: email,
-        role_id: 2,
+        role_id: 3,
         avatar_url:
           "https://covwleocjigusbqbkxdj.supabase.co/storage/v1/object/public/default/user.png",
       },

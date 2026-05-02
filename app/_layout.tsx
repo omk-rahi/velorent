@@ -70,9 +70,7 @@ export default function RootLayout() {
           hasText(customerData?.aadhaar_name) &&
           hasText(customerData?.aadhaar_address);
         const dlVerified =
-          hasText(customerData?.dl_number) &&
-          hasText(customerData?.dl_name) &&
-          hasText(customerData?.dl_address);
+          hasText(customerData?.dl_number);
 
         if (isMounted) {
           setProfile({

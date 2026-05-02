@@ -15,7 +15,6 @@ import {
   Alert,
   Image,
   Linking,
-  Platform,
   ScrollView,
   TouchableOpacity,
   View,
@@ -60,6 +59,8 @@ const STATUS_CONFIG: Record<
     bg: "rgba(239,68,68,0.1)",
   },
 };
+const CANCELLATION_CUTOFF_HOURS = 12;
+const CANCELLATION_CHARGE_AFTER_CUTOFF = 500;
 
 function fmtDate(str: string) {
   return new Date(str).toLocaleDateString("en-IN", {
@@ -390,13 +391,41 @@ export default function BookingDetailScreen() {
     onError: (err) => logQueryError("return", err),
   });
 
+  const { data: latestPaymentData } = useQuery({
+    queryKey: ["booking-payment", id],
+    enabled: !!id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("payments")
+        .select("id, status, amount, currency, updated_at")
+        .eq("booking_id", id!)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) {
+        const message = String(error.message ?? "").toLowerCase();
+        if (message.includes("payments")) return null;
+        throw error;
+      }
+      return data;
+    },
+    onError: (err) => logQueryError("payment", err),
+  });
+
   const { mutate: cancel, isPending: cancelling } = useMutation({
     mutationFn: () => cancelBooking(id!),
-    onSuccess: () => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ["booking", id] });
       queryClient.invalidateQueries({ queryKey: ["bookings"] });
       queryClient.invalidateQueries({ queryKey: ["booking-events", id] });
-      Alert.alert("Booking Cancelled", "Your booking has been cancelled.");
+      const cancellationFee = Number((result as any)?.cancellationFee ?? 0);
+      const refundableAmount = Number((result as any)?.refundableAmount ?? 0);
+      Alert.alert(
+        "Booking Cancelled",
+        cancellationFee > 0
+          ? `Cancellation charge: ₹${cancellationFee}. Refund to be processed: ₹${refundableAmount}.`
+          : "Your booking has been cancelled. Full refund will be processed.",
+      );
     },
     onError: (error: any) => {
       const message =
@@ -512,15 +541,28 @@ export default function BookingDetailScreen() {
     car?.car_images?.[0]?.image_url ??
     null;
 
-  const pickupAddress = car?.car_pickup_addresses?.[0];
+  const pickupAddressSource =
+    car?.car_pickup_addresses ??
+    car?.car_pickup_address ??
+    car?.address ??
+    null;
+  const pickupAddress = Array.isArray(pickupAddressSource)
+    ? pickupAddressSource[0]
+    : pickupAddressSource;
   const fullAddress = pickupAddress
-    ? `${pickupAddress.address_line1}, ${pickupAddress.city}`
-    : null;
+    ? [pickupAddress.address_line1, pickupAddress.city, pickupAddress.state]
+        .filter((part) => typeof part === "string" && part.trim().length > 0)
+        .join(", ")
+    : "";
 
   const deliveryAddress =
     typeof booking.delivery_address === "string"
       ? booking.delivery_address.trim()
       : "";
+  const mapQuery =
+    pickupAddress?.latitude && pickupAddress?.longitude
+      ? `${pickupAddress.latitude},${pickupAddress.longitude}`
+      : fullAddress;
 
   const rawBookingEvents = Array.isArray(bookingEventsData)
     ? bookingEventsData
@@ -583,26 +625,42 @@ export default function BookingDetailScreen() {
   const handoverDetails = (handoverDetailData as any) ?? null;
   const returnDetails = (returnDetailData as any) ?? null;
   const disputes = Array.isArray(disputesData) ? disputesData : [];
-  const cancellationCutoffHours = 12;
+  const latestPayment = (latestPaymentData as any) ?? null;
+  const paymentStatusLabel = String(latestPayment?.status ?? "")
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+  const refundStatusLabel =
+    latestPayment?.status === "refunded"
+      ? "Refunded"
+      : booking.status === "cancelled"
+        ? "Pending"
+        : "Not applicable";
+  const refundedAmount =
+    latestPayment?.status === "refunded"
+      ? Number(latestPayment?.amount ?? 0)
+      : 0;
   const msUntilPickup = new Date(booking.start_time).getTime() - Date.now();
-  const canCancelByTime = msUntilPickup >= cancellationCutoffHours * 60 * 60 * 1000;
-  const cancelBlockedReason = canCancelByTime
-    ? ""
-    : `Cancellation is only allowed at least ${cancellationCutoffHours} hours before pickup.`;
+  const isFreeCancellationWindow =
+    msUntilPickup >= CANCELLATION_CUTOFF_HOURS * 60 * 60 * 1000;
+  const cancellationFee = isFreeCancellationWindow
+    ? 0
+    : CANCELLATION_CHARGE_AFTER_CUTOFF;
 
   const handleCancelPress = () => {
-    if (!canCancelByTime) {
-      Alert.alert("Cancellation Not Allowed", cancelBlockedReason);
-      return;
-    }
-    Alert.alert("Cancel Booking?", "Are you sure you want to cancel this booking?", [
-      { text: "Keep Booking", style: "cancel" },
-      {
-        text: "Cancel Booking",
-        style: "destructive",
-        onPress: () => cancel(),
-      },
-    ]);
+    Alert.alert(
+      "Cancel Booking?",
+      isFreeCancellationWindow
+        ? "Are you sure you want to cancel this booking? You are eligible for a full refund."
+        : `Are you sure you want to cancel this booking? A cancellation charge of ₹${CANCELLATION_CHARGE_AFTER_CUTOFF} will be applied.`,
+      [
+        { text: "Keep Booking", style: "cancel" },
+        {
+          text: "Cancel Booking",
+          style: "destructive",
+          onPress: () => cancel(),
+        },
+      ],
+    );
   };
 
   const openProof = async (url?: string | null) => {
@@ -628,19 +686,11 @@ export default function BookingDetailScreen() {
   };
 
   const openMap = () => {
-    if (pickupAddress?.latitude && pickupAddress?.longitude) {
-      const scheme = Platform.select({
-        ios: "maps:0,0?q=",
-        android: "geo:0,0?q=",
-      });
-      const latLng = `${pickupAddress.latitude},${pickupAddress.longitude}`;
-      const label = "Car Pickup Location";
-      const url = Platform.select({
-        ios: `${scheme}${label}@${latLng}`,
-        android: `${scheme}${latLng}(${label})`,
-      });
-      if (url) Linking.openURL(url);
-    }
+    if (!mapQuery) return;
+    const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapQuery)}`;
+    Linking.openURL(googleMapsUrl).catch(() => {
+      Alert.alert("Open Failed", "Unable to open Google Maps.");
+    });
   };
 
   return (
@@ -825,20 +875,11 @@ export default function BookingDetailScreen() {
         </SectionCard>
 
         {/* Location */}
-        {deliveryAddress ? (
-          <SectionCard title="Delivery Location">
-            <InfoRow label="Address" value={deliveryAddress} last />
-          </SectionCard>
-        ) : fullAddress ? (
+        {fullAddress ? (
           <SectionCard title="Pickup Location">
             <View style={{ paddingHorizontal: 16, paddingVertical: 13 }}>
-              <HStack
-                style={{
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                }}
-              >
-                <VStack style={{ flex: 1, gap: 2 }}>
+              <VStack style={{ gap: 10 }}>
+                <VStack style={{ gap: 2 }}>
                   <Text style={{ fontSize: 14, color: Colors.light.icon }}>
                     Address
                   </Text>
@@ -852,38 +893,46 @@ export default function BookingDetailScreen() {
                     {fullAddress}
                   </Text>
                 </VStack>
-                {pickupAddress?.latitude && (
-                  <TouchableOpacity
-                    onPress={openMap}
-                    activeOpacity={0.8}
+                <TouchableOpacity
+                  onPress={openMap}
+                  activeOpacity={0.8}
+                  disabled={!mapQuery}
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 5,
+                    paddingHorizontal: 10,
+                    paddingVertical: 9,
+                    borderRadius: 10,
+                    backgroundColor: mapQuery
+                      ? "rgba(26,86,255,0.1)"
+                      : "rgba(100,116,139,0.12)",
+                    alignSelf: "flex-start",
+                  }}
+                >
+                  <Ionicons
+                    name="navigate-outline"
+                    size={14}
+                    color={Colors.light.tint}
+                  />
+                  <Text
                     style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      gap: 5,
-                      paddingHorizontal: 10,
-                      paddingVertical: 7,
-                      borderRadius: 10,
-                      backgroundColor: "rgba(26,86,255,0.1)",
+                      fontSize: 12,
+                      fontWeight: "700",
+                      color: mapQuery ? Colors.light.tint : Colors.light.iconMuted,
                     }}
                   >
-                    <Ionicons
-                      name="navigate-outline"
-                      size={14}
-                      color={Colors.light.tint}
-                    />
-                    <Text
-                      style={{
-                        fontSize: 12,
-                        fontWeight: "700",
-                        color: Colors.light.tint,
-                      }}
-                    >
-                      Navigate
-                    </Text>
-                  </TouchableOpacity>
-                )}
-              </HStack>
+                    Open in Map
+                  </Text>
+                </TouchableOpacity>
+              </VStack>
             </View>
+          </SectionCard>
+        ) : null}
+        {deliveryAddress ? (
+          <SectionCard title="Delivery Location">
+            <InfoRow label="Address" value={deliveryAddress} last />
           </SectionCard>
         ) : null}
 
@@ -970,6 +1019,27 @@ export default function BookingDetailScreen() {
               value={`₹${booking.deposit_amount.toLocaleString("en-IN")}`}
             />
           )}
+          <InfoRow
+            label="Refund Status"
+            value={refundStatusLabel}
+            valueColor={
+              refundStatusLabel === "Refunded"
+                ? Colors.light.success
+                : refundStatusLabel === "Pending"
+                  ? Colors.light.warning
+                  : Colors.light.iconMuted
+            }
+          />
+          {refundedAmount > 0 ? (
+            <InfoRow
+              label="Refunded Amount"
+              value={`₹${refundedAmount.toLocaleString("en-IN")}`}
+              valueColor={Colors.light.success}
+            />
+          ) : null}
+          {paymentStatusLabel ? (
+            <InfoRow label="Payment Status" value={paymentStatusLabel} />
+          ) : null}
           <HStack
             style={{
               paddingHorizontal: 16,
@@ -1225,7 +1295,7 @@ export default function BookingDetailScreen() {
           <Button
             size="xl"
             style={{ borderRadius: 16, backgroundColor: Colors.light.error }}
-            isDisabled={cancelling || !canCancelByTime}
+            isDisabled={cancelling}
             onPress={handleCancelPress}
           >
             {cancelling && <ButtonSpinner color="#fff" />}
@@ -1233,11 +1303,19 @@ export default function BookingDetailScreen() {
               Cancel Booking
             </ButtonText>
           </Button>
-          {!canCancelByTime && (
-            <Text style={{ marginTop: 8, fontSize: 12, color: Colors.light.error }}>
-              {cancelBlockedReason}
-            </Text>
-          )}
+          <Text
+            style={{
+              marginTop: 8,
+              fontSize: 12,
+              color: isFreeCancellationWindow
+                ? Colors.light.success
+                : Colors.light.warning,
+            }}
+          >
+            {isFreeCancellationWindow
+              ? `Free cancellation available up to ${CANCELLATION_CUTOFF_HOURS} hours before pickup.`
+              : `Cancellation charge of ₹${cancellationFee} will apply (within ${CANCELLATION_CUTOFF_HOURS} hours of pickup).`}
+          </Text>
         </View>
       )}
 
@@ -1264,7 +1342,7 @@ export default function BookingDetailScreen() {
                 backgroundColor: Colors.light.error,
                 flex: 1,
               }}
-              isDisabled={cancelling || !canCancelByTime}
+              isDisabled={cancelling}
               onPress={handleCancelPress}
             >
               {cancelling && <ButtonSpinner color="#fff" />}
@@ -1290,11 +1368,19 @@ export default function BookingDetailScreen() {
               </ButtonText>
             </Button>
           </HStack>
-          {!canCancelByTime && (
-            <Text style={{ marginTop: 8, fontSize: 12, color: Colors.light.error }}>
-              {cancelBlockedReason}
-            </Text>
-          )}
+          <Text
+            style={{
+              marginTop: 8,
+              fontSize: 12,
+              color: isFreeCancellationWindow
+                ? Colors.light.success
+                : Colors.light.warning,
+            }}
+          >
+            {isFreeCancellationWindow
+              ? `Free cancellation available up to ${CANCELLATION_CUTOFF_HOURS} hours before pickup.`
+              : `Cancellation charge of ₹${cancellationFee} will apply (within ${CANCELLATION_CUTOFF_HOURS} hours of pickup).`}
+          </Text>
         </View>
       )}
 

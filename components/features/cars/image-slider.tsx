@@ -5,6 +5,7 @@ import {
     Image,
     NativeScrollEvent,
     NativeSyntheticEvent,
+    StyleSheet,
     View,
 } from "react-native";
 
@@ -14,9 +15,10 @@ const IMAGE_HEIGHT = 320;
 
 type Props = {
   images?: string[];
+  isGrayscale?: boolean;
 };
 
-export function ImageSlider({ images = [] }: Props) {
+export function ImageSlider({ images = [], isGrayscale = false }: Props) {
   const [activeIndex, setActiveIndex] = useState(0);
 
   const displayImages = images.length > 0 ? images : [
@@ -38,11 +40,28 @@ export function ImageSlider({ images = [] }: Props) {
         keyExtractor={(_, i) => i.toString()}
         onMomentumScrollEnd={onScrollEnd}
         renderItem={({ item }) => (
-          <Image
-            source={{ uri: item }}
-            style={{ width, height: IMAGE_HEIGHT }}
-            resizeMode="cover"
-          />
+          <View style={{ width, height: IMAGE_HEIGHT }}>
+            {isGrayscale ? (
+              <>
+                <Image
+                  source={{ uri: item }}
+                  style={{ width, height: IMAGE_HEIGHT, tintColor: "#7A7A7A" }}
+                  resizeMode="cover"
+                />
+                <Image
+                  source={{ uri: item }}
+                  style={[StyleSheet.absoluteFillObject, { opacity: 0.2 }]}
+                  resizeMode="cover"
+                />
+              </>
+            ) : (
+              <Image
+                source={{ uri: item }}
+                style={{ width, height: IMAGE_HEIGHT }}
+                resizeMode="cover"
+              />
+            )}
+          </View>
         )}
       />
 

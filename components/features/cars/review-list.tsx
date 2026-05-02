@@ -24,7 +24,7 @@ export function ReviewList({ reviews = [], carId }: Props) {
   return (
     <VStack space="md">
       <HStack className="items-center justify-between px-1">
-        <Heading size="md">Reviews</Heading>
+        <Heading size="md">Reviews ({reviews.length})</Heading>
 
         {hasReviews && (
           <Link href={{ pathname: "/all-review", params: { carId } }} asChild>

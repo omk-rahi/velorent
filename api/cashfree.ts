@@ -69,6 +69,14 @@ export type VerifyCashfreeOrderResponse = {
   raw: unknown;
 };
 
+export type RefundCashfreeOrderResponse = {
+  orderId: string;
+  refundId?: string;
+  refundAmount?: number;
+  refundStatus?: string;
+  raw: unknown;
+};
+
 async function getUserId(): Promise<string | undefined> {
   const { data } = await supabase.auth.getSession();
   return data.session?.user.id;
@@ -331,6 +339,73 @@ export async function verifyCashfreeOrder(orderId: string): Promise<VerifyCashfr
     orderStatus,
     paymentStatus,
     isPaid: paidFlag ?? statusSignalsPaid,
+    raw: data,
+  };
+}
+
+export async function refundCashfreeOrder({
+  orderId,
+  refundAmount,
+  refundNote,
+}: {
+  orderId: string;
+  refundAmount: number;
+  refundNote?: string;
+}): Promise<RefundCashfreeOrderResponse> {
+  if (!API_URL) {
+    throw new Error("Missing EXPO_PUBLIC_API_URL for Cashfree refund.");
+  }
+  if (!orderId?.trim()) throw new Error("orderId is required");
+  if (!Number.isFinite(refundAmount) || refundAmount <= 0) {
+    throw new Error("refundAmount must be greater than 0");
+  }
+
+  const userId = await getUserId();
+  const res = await fetch(`${API_URL}/payments/cashfree/refund`, {
+    method: "POST",
+    headers: authHeaders(userId),
+    body: JSON.stringify({
+      order_id: orderId,
+      refund_amount: Number(refundAmount.toFixed(2)),
+      refund_note: refundNote ?? "Booking cancellation refund",
+    }),
+  });
+
+  const rawText = await res.text();
+  let data: any = {};
+  try {
+    data = rawText ? JSON.parse(rawText) : {};
+  } catch {
+    data = {};
+  }
+  if (!res.ok || data?.success === false) {
+    const backendMessage =
+      data?.message ??
+      data?.error?.message ??
+      data?.error ??
+      (typeof rawText === "string" ? rawText.slice(0, 180) : "");
+    throw new Error(
+      backendMessage
+        ? `Failed to refund Cashfree payment (${res.status}): ${backendMessage}`
+        : `Failed to refund Cashfree payment (${res.status}).`,
+    );
+  }
+
+  const payload = extractPayload<Record<string, unknown>>(data);
+  return {
+    orderId:
+      pickString(payload, ["order_id", "orderId"]) ??
+      pickString(data, ["order_id", "orderId"]) ??
+      orderId,
+    refundId:
+      pickString(payload, ["refund_id", "refundId"]) ??
+      pickString(data, ["refund_id", "refundId"]),
+    refundAmount:
+      pickNumber(payload, ["refund_amount", "refundAmount"]) ??
+      pickNumber(data, ["refund_amount", "refundAmount"]),
+    refundStatus:
+      pickString(payload, ["refund_status", "refundStatus", "status"]) ??
+      pickString(data, ["refund_status", "refundStatus", "status"]),
     raw: data,
   };
 }

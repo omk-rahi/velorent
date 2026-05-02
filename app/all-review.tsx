@@ -2,7 +2,7 @@ import { getCarReviews } from "@/api/cars";
 import { ReviewCard } from "@/components/features/cars/review-card";
 import { Text } from "@/components/ui/text";
 import { Colors } from "@/constants/theme";
-import { useLocalSearchParams } from "expo-router";
+import { Stack, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, FlatList, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -47,7 +47,16 @@ export default function AllReviewsScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-background-0 px-5 ">
+    <SafeAreaView
+      style={{ flex: 1, backgroundColor: "#fff", paddingHorizontal: 16 }}
+    >
+      <Stack.Screen
+        options={{
+          title: `Reviews (${reviews.length})`,
+          headerShadowVisible: false,
+          headerTitleStyle: { fontWeight: "700" },
+        }}
+      />
       <FlatList
         data={reviews}
         keyExtractor={(item) => item.id}
@@ -56,7 +65,9 @@ export default function AllReviewsScreen() {
           gap: 16,
           paddingBottom: 32,
         }}
-        renderItem={({ item }) => <ReviewCard variant="vertical" review={item} />}
+        renderItem={({ item }) => (
+          <ReviewCard variant="vertical" review={item} />
+        )}
       />
     </SafeAreaView>
   );

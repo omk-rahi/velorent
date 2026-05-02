@@ -38,23 +38,46 @@ export default function VerifyDrivingLicenseScreen() {
       verify(url, undefined, {
         userFlow: "signin",
         onSuccess: async () => {
+          setState("loading");
           let dlNumber: string | null = null;
           let dlName: string | null = null;
           let dlAddress: string | null = null;
 
           try {
-            const status = await getDigilockerStatus(verification_id);
+            let status = await getDigilockerStatus(verification_id);
+            let retries = 6;
+            while (status.data.status === "PENDING" && retries > 0) {
+              await new Promise((resolve) => setTimeout(resolve, 1500));
+              status = await getDigilockerStatus(verification_id);
+              retries -= 1;
+            }
+
+            // Extract name/address from the status user_details if present
             dlName =
-              extractIdentityField(status.data, ["name", "full_name", "holder_name"]) ??
-              null;
+              extractIdentityField(status.data, [
+                "name",
+                "full_name",
+                "holder_name",
+                "owner_name",
+                "user_name",
+              ]) ?? null;
             dlAddress = extractIdentityAddress(status.data);
+
+            // The DL number is only available in the document endpoint, not the status response
             if (status.data.status === "AUTHENTICATED") {
-              const document = await getDigilockerDocument("DRIVING_LICENSE", verification_id);
+              const document = await getDigilockerDocument(
+                "DRIVING_LICENSE",
+                verification_id,
+              );
               dlNumber = extractIdentityField(document.data, [
                 "dl_number",
                 "driving_license_number",
                 "license_number",
                 "licence_number",
+                "license_no",
+                "licence_no",
+                "dl_no",
+                "document_number",
                 "number",
               ]);
               dlName =
@@ -63,11 +86,18 @@ export default function VerifyDrivingLicenseScreen() {
                   "name",
                   "full_name",
                   "holder_name",
+                  "owner_name",
                 ]);
               dlAddress = dlAddress ?? extractIdentityAddress(document.data);
+            } else {
+              throw new Error(
+                `DigiLocker verification did not complete. Status: ${status.data.status}`,
+              );
             }
-          } catch {
-            // proceed even if document fetch fails
+          } catch (err: any) {
+            setErrorMsg(err?.message ?? "Failed to retrieve license details.");
+            setState("error");
+            return;
           }
           if (profileId) {
             try {

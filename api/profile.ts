@@ -76,7 +76,7 @@ export async function updateVerificationStatus(
   const requiredFields =
     field === "aadhaar_verified"
       ? ["aadhaar_number", "aadhaar_name", "aadhaar_address"]
-      : ["dl_number", "dl_name", "dl_address"];
+      : ["dl_number"];
 
   const { data: customerData, error: customerError } = await supabase
     .from("customers")
@@ -146,3 +146,120 @@ export async function uploadAvatarAndUpdateProfile({
 
   return data;
 }
+
+type UpsertCustomerBankDataParams = {
+  customerId: string;
+  bankAccountHolder: string;
+  bankAccountNumber: string;
+  ifscCode: string;
+};
+
+export const upsertCustomerBankData = async ({
+  customerId,
+  bankAccountHolder,
+  bankAccountNumber,
+  ifscCode,
+}: UpsertCustomerBankDataParams) => {
+  const { data, error } = await supabase
+    .from("customers")
+    .upsert(
+      {
+        id: customerId,
+        bank_account_holder: bankAccountHolder,
+        bank_account_number: bankAccountNumber,
+        ifsc_code: ifscCode,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "id" }
+    )
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error("Something went wrong");
+  }
+
+  return data;
+};
+
+export const getCustomerBankData = async (customerId: string) => {
+  const { data, error } = await supabase
+    .from("customers")
+    .select(
+      `
+      id,
+      bank_account_holder,
+      bank_account_number,
+      ifsc_code,
+      created_at,
+      updated_at
+      `
+    )
+    .eq("id", customerId)
+    .single();
+
+  if (error) {
+    if (error.code === "PGRST116") {
+      return null;
+    }
+
+    console.error("Get customer bank data error:", error);
+    throw new Error("Failed to fetch bank details");
+  }
+
+  return data;
+};
+
+type UpsertBeneficiaryParams = {
+  customerId: string;
+  accountHolderName: string;
+  accountNumber: string;
+  ifsc: string;
+  phone?: string;
+  email?: string;
+};
+
+export const upsertBeneficiary = async ({
+  customerId,
+  accountHolderName,
+  accountNumber,
+  ifsc,
+  phone,
+  email,
+}: UpsertBeneficiaryParams) => {
+  const API_BASE_URL = (process.env.EXPO_PUBLIC_API_URL ?? "").trim();
+  if (!API_BASE_URL) throw new Error("Missing EXPO_PUBLIC_API_URL");
+
+  const res = await fetch(`${API_BASE_URL}/beneficiary/upsert`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "ngrok-skip-browser-warning": "true",
+    },
+    body: JSON.stringify({
+      host_id: customerId, // backend likely still uses host_id parameter or we map customerId to it
+      account_holder_name: accountHolderName,
+      account_number: accountNumber,
+      ifsc,
+      phone,
+      email,
+    }),
+  });
+
+  const raw = await res.text();
+  let data: any;
+
+  try {
+    data = raw ? JSON.parse(raw) : {};
+  } catch {
+    throw new Error(
+      "Invalid API response. Check EXPO_PUBLIC_API_URL or add ngrok header bypass"
+    );
+  }
+
+  if (!res.ok || !data.success) {
+    throw new Error(data.message ?? "Failed to register beneficiary");
+  }
+
+  return data;
+};

@@ -5,11 +5,14 @@ import {
   Alert,
   KeyboardAvoidingView,
   Linking,
+  LayoutAnimation,
   Modal,
   Platform,
   Pressable,
   ScrollView,
   TextInput,
+  TouchableOpacity,
+  UIManager,
   View,
 } from "react-native";
 import {
@@ -37,6 +40,7 @@ import { VStack } from "@/components/ui/vstack";
 import { Colors } from "@/constants/theme";
 import { useBookingSteps } from "@/hooks/use-booking-steps";
 import { parseDateTime } from "@/lib/booking-utils";
+import { supabase } from "@/lib/supabase";
 import { useBookingStore } from "@/store/use-booking-store";
 import useUser from "@/store/use-user";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -59,6 +63,96 @@ const CASHFREE_ENVIRONMENT =
 const CASHFREE_CANCEL_ERROR_CODE = "action_cancelled";
 const PAYMENT_VERIFY_MAX_ATTEMPTS = 4;
 const PAYMENT_VERIFY_DELAY_MS = 2000;
+
+const INSURANCE_LIABILITY_POINTS = [
+  "In case of any accident, the customer must immediately inform our customer support. The vehicle must not be moved without written approval from the company.",
+  "In case of violation, insurance will not be applicable and the customer will be liable to pay the full damage cost along with rental charges until the vehicle is repaired.",
+  "Maximum liability of the customer is ₹ 100000. Any amount above this will be covered under insurance.",
+  "Minimum downtime charges shall be levied based on the prevailing daily rental rate until the vehicle is fully repaired and returned from the workshop.",
+];
+
+type CarFaq = {
+  question: string;
+  answer?: string;
+  points?: string[];
+};
+
+const CAR_FAQS: CarFaq[] = [
+  {
+    question: "Insurance & Liability",
+    points: INSURANCE_LIABILITY_POINTS,
+  },
+  {
+    question: "What documents are required to book this car?",
+    answer:
+      "You need a verified Aadhaar and a verified driving license on your profile before confirming the booking.",
+  },
+  {
+    question: "Is there a security deposit?",
+    answer:
+      "Yes. A refundable security deposit may apply based on the vehicle category and booking details.",
+  },
+  {
+    question: "Can I cancel my booking?",
+    answer:
+      "Yes, bookings can be cancelled as per the cancellation policy shown at checkout. Any applicable refund is processed accordingly.",
+  },
+  {
+    question: "What happens if I return the car late?",
+    answer:
+      "Late returns may attract additional hourly or daily charges based on the extra usage duration and policy terms.",
+  },
+  {
+    question: "Who pays for fuel during the trip?",
+    answer:
+      "Fuel cost during your trip is generally borne by the customer unless mentioned otherwise for a specific booking plan.",
+  },
+  {
+    question: "Is roadside assistance available?",
+    answer:
+      "Yes, support is available in case of breakdown or emergencies. Please contact customer support immediately for assistance.",
+  },
+];
+
+function extractSuccessfulCashfreePayment(raw: any) {
+  const root = raw && typeof raw === "object" ? raw : {};
+  const data = root?.data && typeof root.data === "object" ? root.data : root;
+  const payments = Array.isArray(data?.payments) ? data.payments : [];
+  const successfulPayment =
+    payments.find((payment: any) => {
+      const status = String(
+        payment?.payment_status ?? payment?.status ?? "",
+      ).toUpperCase();
+      return status === "SUCCESS" || status === "PAID";
+    }) ?? payments[0];
+
+  return {
+    paymentMethod: String(
+      successfulPayment?.payment_method ??
+        successfulPayment?.payment_group ??
+        "cashfree",
+    ),
+    gatewayPaymentId: String(
+      successfulPayment?.cf_payment_id ??
+        successfulPayment?.payment_id ??
+        successfulPayment?.id ??
+        "",
+    ),
+    gatewayOrderId: String(
+      data?.order?.order_id ??
+        data?.order_id ??
+        root?.order_id ??
+        "",
+    ),
+  };
+}
+
+if (
+  Platform.OS === "android" &&
+  UIManager.setLayoutAnimationEnabledExperimental
+) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
 export default function CheckoutStep() {
   const { carId } = useLocalSearchParams<{ carId: string }>();
@@ -90,6 +184,7 @@ export default function CheckoutStep() {
     useState(false);
   const [hasAcknowledgedBookingDocs, setHasAcknowledgedBookingDocs] =
     useState(false);
+  const [expandedFaqIndex, setExpandedFaqIndex] = useState<number | null>(null);
 
   const { data: carData, isLoading } = useQuery({
     queryKey: ["car", carId],
@@ -351,6 +446,18 @@ export default function CheckoutStep() {
         return;
       }
 
+      const safeCommissionPercentage = Math.min(
+        100,
+        Math.max(0, Number(car.commission_percentage || 0)),
+      );
+      const commissionBase = Math.max(
+        0,
+        Number((costs.rentalCost + costs.deliveryCharge - costs.discount).toFixed(2)),
+      );
+      const safeCommissionAmount = Number(
+        ((commissionBase * safeCommissionPercentage) / 100).toFixed(2),
+      );
+
       const result = await createBooking({
         car_id: car.id,
         customer_id: profile.id,
@@ -360,9 +467,8 @@ export default function CheckoutStep() {
         total_hours: costs.hours,
         base_amount: costs.rentalCost,
         delivery_amount: costs.deliveryCharge,
-        commission_percentage: car.commission_percentage || 0,
-        commission_amount:
-          (costs.total * (car.commission_percentage || 0)) / 100,
+        commission_percentage: safeCommissionPercentage,
+        commission_amount: safeCommissionAmount,
         deposit_amount: costs.deposit,
         deposit_status: costs.deposit > 0 ? "paid" : "pending",
         total_amount: costs.total,
@@ -372,8 +478,31 @@ export default function CheckoutStep() {
           deliveryMethod === "delivery"
             ? deliveryAddress || undefined
             : undefined,
-        status: "pending",
+        status: "confirmed",
       });
+
+      try {
+        const paymentMeta = extractSuccessfulCashfreePayment(
+          paymentVerification?.raw,
+        );
+        await supabase.from("payments").insert({
+          booking_id: result.id,
+          customer_id: profile.id,
+          amount: costs.total,
+          currency: "INR",
+          payment_gateway: "cashfree",
+          payment_method: paymentMeta.paymentMethod,
+          gateway_payment_id: paymentMeta.gatewayPaymentId || null,
+          gateway_order_id: paymentMeta.gatewayOrderId || completedOrderId,
+          status: "successful",
+          updated_at: new Date().toISOString(),
+        });
+      } catch (paymentInsertError) {
+        console.warn(
+          "[checkout] failed to create payment record:",
+          paymentInsertError,
+        );
+      }
 
       if (appliedCoupon && profile?.id) {
         try {
@@ -744,6 +873,126 @@ export default function CheckoutStep() {
                 }
               />
             </View>
+
+            {/* FAQs */}
+            <VStack style={{ gap: 12 }}>
+              <Text
+                style={{
+                  fontSize: 16,
+                  fontWeight: "700",
+                  color: Colors.light.text,
+                  letterSpacing: -0.2,
+                }}
+              >
+                FAQs
+              </Text>
+
+              {CAR_FAQS.map((faq, index) => {
+                const isExpanded = expandedFaqIndex === index;
+                return (
+                  <View
+                    key={faq.question}
+                    style={{
+                      borderWidth: 1,
+                      borderColor: Colors.light.cardBorder,
+                      borderRadius: 16,
+                      backgroundColor: Colors.light.card,
+                      overflow: "hidden",
+                    }}
+                  >
+                    <TouchableOpacity
+                      activeOpacity={0.8}
+                      onPress={() => {
+                        LayoutAnimation.configureNext(
+                          LayoutAnimation.Presets.easeInEaseOut,
+                        );
+                        setExpandedFaqIndex((prev) =>
+                          prev === index ? null : index,
+                        );
+                      }}
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        paddingVertical: 14,
+                        paddingHorizontal: 14,
+                        gap: 10,
+                      }}
+                    >
+                      <Text
+                        style={{
+                          flex: 1,
+                          fontSize: 14,
+                          fontWeight: "700",
+                          color: Colors.light.text,
+                          lineHeight: 20,
+                        }}
+                      >
+                        {faq.question}
+                      </Text>
+                      <Ionicons
+                        name={isExpanded ? "chevron-up" : "chevron-down"}
+                        size={18}
+                        color={Colors.light.icon}
+                      />
+                    </TouchableOpacity>
+
+                    {isExpanded && (
+                      <View
+                        style={{
+                          borderTopWidth: 1,
+                          borderTopColor: Colors.light.cardBorder,
+                          paddingHorizontal: 14,
+                          paddingVertical: 12,
+                        }}
+                      >
+                        {faq.points?.length ? (
+                          <VStack style={{ gap: 10 }}>
+                            {faq.points.map((point, pointIndex) => (
+                              <HStack
+                                key={`${faq.question}-${pointIndex}`}
+                                style={{ alignItems: "flex-start", gap: 8 }}
+                              >
+                                <Text
+                                  style={{
+                                    fontSize: 14,
+                                    lineHeight: 20,
+                                    color: Colors.light.tint,
+                                    marginTop: 1,
+                                  }}
+                                >
+                                  •
+                                </Text>
+                                <Text
+                                  style={{
+                                    flex: 1,
+                                    fontSize: 13,
+                                    lineHeight: 21,
+                                    color: Colors.light.icon,
+                                  }}
+                                >
+                                  {point}
+                                </Text>
+                              </HStack>
+                            ))}
+                          </VStack>
+                        ) : (
+                          <Text
+                            style={{
+                              fontSize: 13,
+                              lineHeight: 21,
+                              color: Colors.light.icon,
+                            }}
+                          >
+                            {faq.answer}
+                          </Text>
+                        )}
+                      </View>
+                    )}
+                  </View>
+                );
+              })}
+            </VStack>
           </VStack>
         </ScrollView>
 
@@ -901,7 +1150,7 @@ export default function CheckoutStep() {
                     Driving licence
                   </Text>
                   <Text style={{ fontSize: 12, color: Colors.light.iconMuted }}>
-                    Digilocker or original — issued at least 6 months ago
+                    Digilocker or original - issued at least 6 months ago
                   </Text>
                 </View>
               </View>
@@ -1070,7 +1319,7 @@ export default function CheckoutStep() {
                 marginTop: 14,
               }}
             >
-              By clicking on &apos;Agree and continue&apos; you are agreeing to
+              By clicking on 'Agree and continue' you are agreeing to
               the{" "}
               <Text
                 onPress={() => Linking.openURL("https://www.velorent.in/terms")}

@@ -8,6 +8,7 @@ import useUser from "@/store/use-user";
 import { useQuery } from "@tanstack/react-query";
 import { router } from "expo-router";
 import {
+  Bike,
   Calendar,
   CalendarX2,
   Car,
@@ -65,6 +66,25 @@ function fmtTime(str: string) {
   });
 }
 
+function getDepositDisplay(item: any) {
+  const depositAmount = Number(item.deposit_amount ?? 0);
+  const depositStatus = String(item.deposit_status ?? "").toLowerCase();
+  const isTwoWheelerCollateral = depositAmount <= 0 && depositStatus === "pending";
+
+  if (isTwoWheelerCollateral) {
+    return {
+      label: "Collateral",
+      type: "collateral" as const,
+    };
+  }
+
+  return {
+    label: "Deposit",
+    type: "amount" as const,
+    value: `Rs ${depositAmount.toLocaleString("en-IN")}`,
+  };
+}
+
 function BookingCard({ item }: { item: any }) {
   const cfg = STATUS_CONFIG[item.status] ?? STATUS_CONFIG.pending;
   const carName = item.car?.name ?? "Car";
@@ -72,6 +92,7 @@ function BookingCard({ item }: { item: any }) {
   const primaryImg = item.car?.image_url ?? null;
   const hostName = item.car?.host_name ?? "Host";
   const bookingRef = `#${item.id.slice(-8).toUpperCase()}`;
+  const depositDisplay = getDepositDisplay(item);
 
   return (
     <TouchableOpacity
@@ -181,10 +202,25 @@ function BookingCard({ item }: { item: any }) {
         </VStack>
         <View style={{ width: 1, height: 28, backgroundColor: Colors.light.cardBorder }} />
         <VStack style={{ gap: 1, alignItems: "flex-end" }}>
-          <Text style={{ fontSize: 11, color: Colors.light.iconMuted }}>Deposit</Text>
-          <Text style={{ fontSize: 15, fontWeight: "800", color: Colors.light.tint }}>
-            Rs {Number(item.deposit_amount ?? 0).toLocaleString("en-IN")}
-          </Text>
+          <Text style={{ fontSize: 11, color: Colors.light.iconMuted }}>{depositDisplay.label}</Text>
+          {depositDisplay.type === "collateral" ? (
+            <View
+              style={{
+                width: 28,
+                height: 28,
+                borderRadius: 999,
+                alignItems: "center",
+                justifyContent: "center",
+                backgroundColor: "rgba(26,86,255,0.1)",
+              }}
+            >
+              <Bike size={16} color={Colors.light.tint} />
+            </View>
+          ) : (
+            <Text style={{ fontSize: 15, fontWeight: "800", color: Colors.light.tint }}>
+              {depositDisplay.value}
+            </Text>
+          )}
         </VStack>
       </View>
     </TouchableOpacity>

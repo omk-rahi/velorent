@@ -75,6 +75,7 @@ export default function AllCarsScreen() {
         ...filters,
       }),
   });
+  const activeCarsCount = (cars ?? []).filter((car: any) => car?.is_active !== false).length;
 
   if (isLoading) {
     return (
@@ -189,7 +190,7 @@ export default function AllCarsScreen() {
                     {pageTitle}
                   </Text>
                   <Text style={{ fontSize: 13, color: Colors.light.iconMuted }}>
-                    {(cars?.length ?? 0)} {(cars?.length ?? 0) === 1 ? "car" : "cars"} available
+                    {activeCarsCount} {activeCarsCount === 1 ? "car" : "cars"} available
                   </Text>
                 </VStack>
 

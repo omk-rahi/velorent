@@ -42,6 +42,7 @@ export default function CarDetail() {
   const dlVerified = profile?.dl_verified === true;
 
   const handleBookNow = () => {
+    if (isInService) return;
     if (!aadhaarVerified || !dlVerified) {
       setShowVerifyModal(true);
       return;
@@ -54,6 +55,7 @@ export default function CarDetail() {
     queryFn: () => getCarById(id as string),
     enabled: !!id,
   });
+  const isInService = car?.is_active === false;
 
   if (isLoading) {
     return (
@@ -86,7 +88,9 @@ export default function CarDetail() {
   }
 
   const images = car.images?.map((img: any) => img.image_url) || [];
-  const pickupAddress = Array.isArray(car.address) ? car.address[0] : car.address;
+  const pickupAddress = Array.isArray(car.address)
+    ? car.address[0]
+    : car.address;
   const brand = (Array.isArray(car.brand) ? car.brand[0] : car.brand) as {
     name: string;
   };
@@ -123,7 +127,7 @@ export default function CarDetail() {
       <GestureHandlerRootView style={{ flex: 1 }}>
         <View style={{ flex: 1, backgroundColor: Colors.light.background }}>
           <View>
-            <ImageSlider images={images} />
+            <ImageSlider images={images} isGrayscale={isInService} />
             <Pressable
               onPress={() => router.back()}
               style={{
@@ -419,10 +423,11 @@ export default function CarDetail() {
               <Button
                 size="lg"
                 style={{ paddingHorizontal: 36 }}
+                isDisabled={isInService}
                 onPress={handleBookNow}
               >
                 <ButtonText style={{ fontWeight: "700", fontSize: 16 }}>
-                  Book Now
+                  {isInService ? "Not available" : "Book Now"}
                 </ButtonText>
               </Button>
             </HStack>

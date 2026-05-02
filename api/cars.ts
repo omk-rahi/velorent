@@ -47,7 +47,6 @@ export async function getCars(filters?: {
       car_reviews (rating)
     `,
     )
-    .eq("is_active", true)
     .eq("is_verified", true);
 
   if (filters?.brandId) {
@@ -122,6 +121,7 @@ export async function getCarById(car_id: string) {
       commission_percentage,
       delivery_rate,
       hourly_price,
+      is_active,
       rc_valid_till,
       insurance_valid_till,
       delivery_enabled,

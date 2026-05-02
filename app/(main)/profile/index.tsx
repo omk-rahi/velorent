@@ -14,6 +14,7 @@ import {
   CreditCard,
   FileText,
   HelpCircle,
+  LandmarkIcon,
   LogOut,
   User,
 } from "lucide-react-native";
@@ -70,7 +71,11 @@ export default function ProfileScreen() {
               {/* Aadhaar row */}
               <TouchableOpacity
                 activeOpacity={aadhaarVerified ? 1 : 0.7}
-                onPress={aadhaarVerified ? undefined : () => router.push("/verify-aadhaar")}
+                onPress={
+                  aadhaarVerified
+                    ? undefined
+                    : () => router.push("/verify-aadhaar")
+                }
                 style={{
                   flexDirection: "row",
                   alignItems: "center",
@@ -93,8 +98,22 @@ export default function ProfileScreen() {
                   <FileText size={18} color="#3B82F6" />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 14, fontWeight: "600", color: Colors.light.text }}>Aadhaar</Text>
-                  <Text style={{ fontSize: 12, color: Colors.light.iconMuted, marginTop: 1 }}>
+                  <Text
+                    style={{
+                      fontSize: 14,
+                      fontWeight: "600",
+                      color: Colors.light.text,
+                    }}
+                  >
+                    Aadhaar
+                  </Text>
+                  <Text
+                    style={{
+                      fontSize: 12,
+                      color: Colors.light.iconMuted,
+                      marginTop: 1,
+                    }}
+                  >
                     {aadhaarVerified ? "Verified" : "Tap to verify"}
                   </Text>
                 </View>
@@ -108,7 +127,11 @@ export default function ProfileScreen() {
               {/* Driving License row */}
               <TouchableOpacity
                 activeOpacity={dlVerified ? 1 : 0.7}
-                onPress={dlVerified ? undefined : () => router.push("/verify-driving-license")}
+                onPress={
+                  dlVerified
+                    ? undefined
+                    : () => router.push("/verify-driving-license")
+                }
                 style={{
                   flexDirection: "row",
                   alignItems: "center",
@@ -129,8 +152,22 @@ export default function ProfileScreen() {
                   <CreditCard size={18} color="#10B981" />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 14, fontWeight: "600", color: Colors.light.text }}>Driving License</Text>
-                  <Text style={{ fontSize: 12, color: Colors.light.iconMuted, marginTop: 1 }}>
+                  <Text
+                    style={{
+                      fontSize: 14,
+                      fontWeight: "600",
+                      color: Colors.light.text,
+                    }}
+                  >
+                    Driving License
+                  </Text>
+                  <Text
+                    style={{
+                      fontSize: 12,
+                      color: Colors.light.iconMuted,
+                      marginTop: 1,
+                    }}
+                  >
                     {dlVerified ? "Verified" : "Tap to verify"}
                   </Text>
                 </View>
@@ -182,6 +219,15 @@ export default function ProfileScreen() {
                 onPress={() => router.push("/profile/add-profile")}
                 iconColor="#F59E0B"
                 iconBg="rgba(245, 158, 11, 0.12)"
+              />
+
+              <ProfileActionItem
+                icon={LandmarkIcon}
+                title="Bank Account"
+                subtitle="Manage your bank details"
+                onPress={() => router.push("/profile/bank-detail")}
+                iconColor="#10B981"
+                iconBg="rgba(16, 185, 129, 0.12)"
                 isLast
               />
             </View>
@@ -221,7 +267,9 @@ export default function ProfileScreen() {
               <ProfileActionItem
                 icon={HelpCircle}
                 title="Help & Support"
-                onPress={() => Linking.openURL("https://www.velorent.in/support")}
+                onPress={() =>
+                  Linking.openURL("https://www.velorent.in/support")
+                }
                 iconColor={Colors.light.tint}
                 iconBg="rgba(26, 86, 255, 0.12)"
                 isLast

@@ -130,6 +130,38 @@ export default function DepositStep() {
               the same condition.
             </Text>
           </View>
+
+          {depositMethod === "two_wheeler" && (
+            <View
+              style={{
+                backgroundColor: Colors.light.error + "12",
+                borderRadius: 12,
+                padding: 12,
+                flexDirection: "row",
+                gap: 10,
+                alignItems: "flex-start",
+                borderWidth: 1,
+                borderColor: Colors.light.error + "30",
+              }}
+            >
+              <Ionicons
+                name="warning-outline"
+                size={16}
+                color={Colors.light.error}
+                style={{ marginTop: 1 }}
+              />
+              <Text
+                style={{
+                  flex: 1,
+                  fontSize: 12,
+                  color: Colors.light.error,
+                  lineHeight: 18,
+                }}
+              >
+                For two-wheeler collateral, the vehicle will remain solely between the host and the guest. The company (Velorent) will not be responsible for custody or any disputes related to the collateral. Customers are strongly advised to record a video and take photos at the time of handover for safety and proof.
+              </Text>
+            </View>
+          )}
         </VStack>
       </ScrollView>
 

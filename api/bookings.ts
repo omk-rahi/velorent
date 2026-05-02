@@ -1,16 +1,10 @@
 import { supabase } from "@/lib/supabase";
+import { refundCashfreeOrder } from "./cashfree";
 import * as Crypto from "expo-crypto";
 
 const BOOKING_PROOFS_BUCKET = "booking-proofs";
 const CANCELLATION_CUTOFF_HOURS = 12;
-
-type BookingStatusDb =
-  | "pending"
-  | "confirmed"
-  | "cancelled"
-  | "rejected"
-  | "ongoing"
-  | "completed";
+const CANCELLATION_CHARGE_AFTER_CUTOFF = 500;
 
 type BookingStatusUi =
   | "pending"
@@ -52,6 +46,10 @@ function toNumber(value: unknown) {
   if (typeof value === "number") return value;
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
 }
 
 function normalizeBooking(row: any) {
@@ -139,9 +137,28 @@ async function uploadBookingProof({
 }
 
 export async function createBooking(booking: CreateBookingParams) {
+  const totalAmount = Math.max(0, toNumber(booking.total_amount));
+  const depositAmount = Math.max(0, toNumber(booking.deposit_amount));
+  const nonDepositAmount = Math.max(0, Number((totalAmount - depositAmount).toFixed(2)));
+  const commissionPercentage = clamp(toNumber(booking.commission_percentage), 0, 100);
+  const requestedCommissionAmount = Math.max(0, toNumber(booking.commission_amount));
+  const percentageCeiling = Number(
+    ((nonDepositAmount * commissionPercentage) / 100).toFixed(2),
+  );
+  const maxAllowedCommissionAmount = Math.min(nonDepositAmount, percentageCeiling);
+  const commissionAmount = Math.min(requestedCommissionAmount, maxAllowedCommissionAmount);
+
+  const sanitizedBooking: CreateBookingParams = {
+    ...booking,
+    total_amount: totalAmount,
+    deposit_amount: depositAmount,
+    commission_percentage: commissionPercentage,
+    commission_amount: commissionAmount,
+  };
+
   const { data, error } = await supabase
     .from("bookings")
-    .insert(booking)
+    .insert(sanitizedBooking)
     .select()
     .single();
 
@@ -242,7 +259,7 @@ export async function getBookingById(bookingId: string) {
         car_models(name),
         car_images(image_url, is_primary),
         host:profiles!host_id(full_name, phone),
-        car_pickup_addresses(address_line1, city, state)
+        car_pickup_addresses(address_line1, city, state, latitude, longitude)
       )
     `,
     )
@@ -296,7 +313,7 @@ export async function cancelBooking(bookingId: string) {
 
   const { data: booking, error: bookingError } = await supabase
     .from("bookings")
-    .select("id, customer_id, status, start_time")
+    .select("id, customer_id, status, start_time, total_amount, deposit_amount")
     .eq("id", bookingId)
     .single();
 
@@ -315,19 +332,71 @@ export async function cancelBooking(bookingId: string) {
   const startTimeMs = new Date(booking.start_time).getTime();
   const cutoffMs = CANCELLATION_CUTOFF_HOURS * 60 * 60 * 1000;
   const msUntilStart = startTimeMs - Date.now();
-  if (msUntilStart < cutoffMs) {
-    throw new Error(
-      `You can only cancel at least ${CANCELLATION_CUTOFF_HOURS} hours before pickup`,
-    );
+  const cancellationFee = msUntilStart < cutoffMs ? CANCELLATION_CHARGE_AFTER_CUTOFF : 0;
+  const refundableAmount = Math.max(
+    0,
+    Number(booking.total_amount ?? 0) - cancellationFee,
+  );
+
+  const { data: latestPayment, error: latestPaymentError } = await supabase
+    .from("payments")
+    .select("id, status, payment_gateway, gateway_order_id")
+    .eq("booking_id", bookingId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (latestPaymentError) {
+    throw new Error(latestPaymentError.message || "Failed to fetch payment details");
+  }
+
+  const paymentStatus = String(latestPayment?.status ?? "").toLowerCase();
+  const paymentGateway = String(latestPayment?.payment_gateway ?? "").toLowerCase();
+  const paymentOrderId = String(latestPayment?.gateway_order_id ?? "").trim();
+  if (refundableAmount > 0 && latestPayment?.id && paymentStatus !== "refunded") {
+    if (paymentGateway !== "cashfree" || !paymentOrderId) {
+      throw new Error("Unable to process refund: unsupported or missing payment gateway details.");
+    }
+    await refundCashfreeOrder({
+      orderId: paymentOrderId,
+      refundAmount: refundableAmount,
+      refundNote: `Booking cancellation refund for ${bookingId}`,
+    });
+
+    const { error: paymentUpdateError } = await supabase
+      .from("payments")
+      .update({
+        status: "refunded",
+        amount: refundableAmount,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", latestPayment.id);
+    if (paymentUpdateError) {
+      throw new Error(paymentUpdateError.message || "Failed to update payment status");
+    }
+  }
+
+  const updatePayload: Record<string, unknown> = {
+    status: "cancelled",
+    updated_at: new Date().toISOString(),
+  };
+  if (Number(booking.deposit_amount ?? 0) > 0 && refundableAmount > 0) {
+    updatePayload.deposit_status = "refunded";
   }
 
   const { error } = await supabase
     .from("bookings")
-    .update({ status: "cancelled", updated_at: new Date().toISOString() })
+    .update(updatePayload)
     .eq("id", bookingId);
 
   if (error) throw error;
   await removeAvailabilityBlockForBooking(bookingId);
+
+  return {
+    cancellationFee,
+    refundableAmount,
+    policyCutoffHours: CANCELLATION_CUTOFF_HOURS,
+  };
 }
 
 export async function submitCustomerDispute({

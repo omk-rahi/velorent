@@ -7,7 +7,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { ZapIcon } from "lucide-react-native";
 import { RefObject, useEffect, useRef, useState } from "react";
-import { Image as RNImage, useWindowDimensions, View } from "react-native";
+import { Image as RNImage, StyleSheet, useWindowDimensions, View } from "react-native";
 import PagerView from "react-native-pager-view";
 
 type Variant = "horizontal" | "vertical";
@@ -28,11 +28,13 @@ function CardImageSlider({
   height,
   shouldAutoPlay = true,
   visibilityTargetRef,
+  isGrayscale = false,
 }: {
   images: string[];
   height: number;
   shouldAutoPlay?: boolean;
   visibilityTargetRef?: RefObject<View | null>;
+  isGrayscale?: boolean;
 }) {
   const [activeIndex, setActiveIndex] = useState(0);
   const pagerRef = useRef<PagerView>(null);
@@ -87,11 +89,31 @@ function CardImageSlider({
 
   if (displayImages.length === 1) {
     return (
-      <RNImage
-        source={{ uri: displayImages[0] }}
-        resizeMode="cover"
-        style={{ width: "100%", height }}
-      />
+      <View style={{ width: "100%", height }}>
+        {isGrayscale ? (
+          <>
+            <RNImage
+              source={{ uri: displayImages[0] }}
+              resizeMode="cover"
+              style={{ width: "100%", height, tintColor: "#7A7A7A" }}
+            />
+            <RNImage
+              source={{ uri: displayImages[0] }}
+              resizeMode="cover"
+              style={[
+                StyleSheet.absoluteFillObject,
+                { width: "100%", height, opacity: 0.2 },
+              ]}
+            />
+          </>
+        ) : (
+          <RNImage
+            source={{ uri: displayImages[0] }}
+            resizeMode="cover"
+            style={{ width: "100%", height }}
+          />
+        )}
+      </View>
     );
   }
 
@@ -112,11 +134,26 @@ function CardImageSlider({
       >
         {displayImages.map((item, index) => (
           <View key={`car-image-${index}`} style={{ flex: 1 }}>
-            <RNImage
-              source={{ uri: item }}
-              resizeMode="cover"
-              style={{ width: "100%", height: "100%" }}
-            />
+            {isGrayscale ? (
+              <>
+                <RNImage
+                  source={{ uri: item }}
+                  resizeMode="cover"
+                  style={{ width: "100%", height: "100%", tintColor: "#7A7A7A" }}
+                />
+                <RNImage
+                  source={{ uri: item }}
+                  resizeMode="cover"
+                  style={[StyleSheet.absoluteFillObject, { opacity: 0.2 }]}
+                />
+              </>
+            ) : (
+              <RNImage
+                source={{ uri: item }}
+                resizeMode="cover"
+                style={{ width: "100%", height: "100%" }}
+              />
+            )}
           </View>
         ))}
       </PagerView>
@@ -162,6 +199,7 @@ export function CarCard({
   const imageHeight = isHorizontal ? 160 : 175;
   const rating = Number(car.average_rating || 0).toFixed(1);
   const reviews = car.review_count || 0;
+  const isInService = car.is_active === false;
 
   const images: string[] =
     Array.isArray(car.car_images) && car.car_images.length > 0
@@ -172,12 +210,12 @@ export function CarCard({
 
   return (
     <PressableCard
-      onPress={() =>
+      onPress={() => {
         router.push({
           pathname: "/car-detail",
           params: { id: car.id },
-        })
-      }
+        });
+      }}
     >
       <View
         ref={cardRef}
@@ -201,6 +239,7 @@ export function CarCard({
             height={imageHeight}
             shouldAutoPlay={isVisible}
             visibilityTargetRef={cardRef}
+            isGrayscale={isInService}
           />
 
           {car.delivery_enabled && (
@@ -228,6 +267,31 @@ export function CarCard({
                 }}
               >
                 Delivery
+              </Text>
+            </HStack>
+          )}
+
+          {isInService && (
+            <HStack
+              style={{
+                position: "absolute",
+                top: 12,
+                left: 12,
+                alignItems: "center",
+                backgroundColor: "rgba(17,24,39,0.86)",
+                paddingHorizontal: 10,
+                paddingVertical: 6,
+                borderRadius: 10,
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 10,
+                  fontWeight: "700",
+                  color: "#FFFFFF",
+                }}
+              >
+                In Service
               </Text>
             </HStack>
           )}
