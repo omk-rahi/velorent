@@ -83,9 +83,16 @@ export function getAvailableTimeSlots(
   // Product rule: if any booking/availability overlaps a date, the whole date is unavailable.
   if (isDateBlocked(isoDate, availability)) return [];
 
-  return TIME_SLOTS.filter(
-    (time) => !isTimeSlotBlocked(isoDate, time, availability),
-  );
+  const now = new Date();
+
+  return TIME_SLOTS.filter((time) => {
+    if (isTimeSlotBlocked(isoDate, time, availability)) return false;
+
+    const slotStart = parseISODateAndTime(isoDate, time);
+    if (slotStart <= now) return false;
+
+    return true;
+  });
 }
 
 /**
@@ -97,9 +104,9 @@ export function buildMarkedDates(
   availability: CarAvailability[],
 ): Record<string, any> {
   const marks: Record<string, any> = {};
-  if (!availability.length) return marks;
 
-  for (let i = 1; i <= 90; i++) {
+
+  for (let i = 0; i <= 90; i++) {
     const date = new Date();
     date.setDate(date.getDate() + i);
     const isoDate = date.toISOString().split("T")[0];

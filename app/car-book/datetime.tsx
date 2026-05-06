@@ -384,11 +384,9 @@ export default function DatetimeStep() {
     };
   }, [car, pickupDate, pickupTime, dropoffDate, dropoffTime]);
 
-  const tomorrowISO = new Date(Date.now() + 86_400_000)
-    .toISOString()
-    .split("T")[0];
+  const todayISO = new Date().toISOString().split("T")[0];
   const pickupISO = formatDateToISO(pickupDate);
-  const minDropoffISO = pickupISO > tomorrowISO ? pickupISO : tomorrowISO;
+  const minDropoffISO = pickupISO > todayISO ? pickupISO : todayISO;
 
   const modalSlots = useMemo(() => {
     if (!modalISO) return [];
@@ -404,7 +402,7 @@ export default function DatetimeStep() {
 
   const currentModalTime = openFor === "pickup" ? pickupTime : dropoffTime;
   const isPickupModal = openFor === "pickup";
-  const minDateISO = isPickupModal ? tomorrowISO : minDropoffISO;
+  const minDateISO = isPickupModal ? todayISO : minDropoffISO;
 
   useEffect(() => {
     if (isCarLoading || isAvailabilityLoading || !car) return;
@@ -425,13 +423,13 @@ export default function DatetimeStep() {
     const durationHours = Math.ceil(
       (dropoffDT.getTime() - pickupDT.getTime()) / (1000 * 60 * 60),
     );
-    const hasPastPickup = pickupISOCurrent < tomorrowISO;
+    const hasPastPickup = pickupISOCurrent < todayISO;
     const needsInit =
       !pickupValid || !dropoffValid || hasPastPickup || durationHours <= 0;
 
     if (!needsInit) return;
 
-    const window = findFirstAvailable24HourWindow(tomorrowISO, availability);
+    const window = findFirstAvailable24HourWindow(todayISO, availability);
     if (!window) return;
 
     setPickupDate(toDisplayDate(window.pickup.iso));
@@ -451,7 +449,7 @@ export default function DatetimeStep() {
     setDropoffTime,
     setPickupDate,
     setPickupTime,
-    tomorrowISO,
+    todayISO,
   ]);
 
   const openPicker = (for_: "pickup" | "dropoff") => {
@@ -459,7 +457,7 @@ export default function DatetimeStep() {
       for_ === "pickup"
         ? formatDateToISO(pickupDate)
         : formatDateToISO(dropoffDate);
-    const minISO = for_ === "pickup" ? tomorrowISO : minDropoffISO;
+    const minISO = for_ === "pickup" ? todayISO : minDropoffISO;
 
     if (existingISO && existingISO >= minISO) {
       setModalISO(existingISO);
