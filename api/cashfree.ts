@@ -56,6 +56,7 @@ export type CreateCashfreeOrderParams = {
 export type CreateCashfreeOrderResponse = {
   orderId: string;
   paymentSessionId: string;
+  environment?: "SANDBOX" | "PRODUCTION";
   orderAmount: number;
   orderCurrency: string;
   raw: unknown;
@@ -253,6 +254,17 @@ export async function createCashfreeOrder({
     "paymentSessionId",
     "payment_session",
   ]);
+  const orderEnvironmentRaw = pickString(payload, [
+    "environment",
+    "env",
+    "cf_environment",
+  ]);
+  const orderEnvironment =
+    orderEnvironmentRaw?.trim().toUpperCase() === "PRODUCTION"
+      ? "PRODUCTION"
+      : orderEnvironmentRaw?.trim().toUpperCase() === "SANDBOX"
+        ? "SANDBOX"
+        : undefined;
   const orderAmount = pickNumber(payload, ["order_amount", "orderAmount"]) ?? amount;
   const orderCurrency = pickString(payload, ["order_currency", "orderCurrency"]) ?? currency;
 
@@ -263,6 +275,7 @@ export async function createCashfreeOrder({
   return {
     orderId,
     paymentSessionId,
+    environment: orderEnvironment,
     orderAmount,
     orderCurrency,
     raw: data,

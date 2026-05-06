@@ -64,6 +64,12 @@ const CASHFREE_CANCEL_ERROR_CODE = "action_cancelled";
 const PAYMENT_VERIFY_MAX_ATTEMPTS = 4;
 const PAYMENT_VERIFY_DELAY_MS = 2000;
 
+function resolveCashfreeEnvironment(orderEnvironment?: "SANDBOX" | "PRODUCTION") {
+  if (orderEnvironment === "PRODUCTION") return CFEnvironment.PRODUCTION;
+  if (orderEnvironment === "SANDBOX") return CFEnvironment.SANDBOX;
+  return CASHFREE_ENVIRONMENT;
+}
+
 const INSURANCE_LIABILITY_POINTS = [
   "In case of any accident, the customer must immediately inform our customer support. The vehicle must not be moved without written approval from the company.",
   "In case of violation, insurance will not be applicable and the customer will be liable to pay the full damage cost along with rental charges until the vehicle is repaired.",
@@ -290,7 +296,11 @@ export default function CheckoutStep() {
     }
   };
 
-  const startCashfreeCheckout = (orderId: string, paymentSessionId: string) =>
+  const startCashfreeCheckout = (
+    orderId: string,
+    paymentSessionId: string,
+    environment?: "SANDBOX" | "PRODUCTION",
+  ) =>
     new Promise<string>((resolve, reject) => {
       let settled = false;
 
@@ -320,7 +330,7 @@ export default function CheckoutStep() {
         const session = new CFSession(
           paymentSessionId,
           orderId,
-          CASHFREE_ENVIRONMENT,
+          resolveCashfreeEnvironment(environment),
         );
         const theme = new CFThemeBuilder()
           .setNavigationBarBackgroundColor("#1A56FF")
@@ -434,6 +444,7 @@ export default function CheckoutStep() {
       const completedOrderId = await startCashfreeCheckout(
         order.orderId,
         order.paymentSessionId,
+        order.environment,
       );
 
       const paymentVerification =
