@@ -14,6 +14,7 @@ import { HStack } from "@/components/ui/hstack";
 import { Text } from "@/components/ui/text";
 import { VStack } from "@/components/ui/vstack";
 import { Colors } from "@/constants/theme";
+import { normalizeTimeString } from "@/lib/booking-utils";
 import { useQuery } from "@tanstack/react-query";
 
 export default function SuccessScreen() {
@@ -35,6 +36,8 @@ export default function SuccessScreen() {
   }>();
 
   const insets = useSafeAreaInsets();
+  const displayPickupTime = normalizeTimeString(pickupTime);
+  const displayDropoffTime = normalizeTimeString(dropoffTime);
 
   const { data: carData, isLoading } = useQuery({
     queryKey: ["car", carId],
@@ -177,12 +180,12 @@ export default function SuccessScreen() {
                 <SummaryRow
                   icon="calendar-outline"
                   label="Pick-up"
-                  value={`${pickupDate} · ${pickupTime}`}
+                  value={`${pickupDate} · ${displayPickupTime}`}
                 />
                 <SummaryRow
                   icon="flag-outline"
                   label="Drop-off"
-                  value={`${dropoffDate} · ${dropoffTime}`}
+                  value={`${dropoffDate} · ${displayDropoffTime}`}
                 />
                 {totalAmount && (
                   <SummaryRow

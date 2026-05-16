@@ -4,6 +4,7 @@ import { HStack } from "@/components/ui/hstack";
 import { Text } from "@/components/ui/text";
 import { VStack } from "@/components/ui/vstack";
 import { Colors } from "@/constants/theme";
+import { formatBookingTime } from "@/lib/booking-utils";
 import useUser from "@/store/use-user";
 import { useQuery } from "@tanstack/react-query";
 import { router } from "expo-router";
@@ -59,11 +60,7 @@ function fmtDate(str: string) {
 }
 
 function fmtTime(str: string) {
-  return new Date(str).toLocaleTimeString("en-IN", {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: true,
-  });
+  return formatBookingTime(str);
 }
 
 function getDepositDisplay(item: any) {

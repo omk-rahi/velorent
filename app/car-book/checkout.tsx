@@ -39,7 +39,7 @@ import { Text } from "@/components/ui/text";
 import { VStack } from "@/components/ui/vstack";
 import { Colors } from "@/constants/theme";
 import { useBookingSteps } from "@/hooks/use-booking-steps";
-import { parseDateTime } from "@/lib/booking-utils";
+import { normalizeTimeString, parseDateTime } from "@/lib/booking-utils";
 import { supabase } from "@/lib/supabase";
 import { useBookingStore } from "@/store/use-booking-store";
 import useUser from "@/store/use-user";
@@ -200,6 +200,8 @@ export default function CheckoutStep() {
   const car = carData as any;
 
   const steps = useBookingSteps(car?.delivery_enabled);
+  const displayPickupTime = normalizeTimeString(pickupTime);
+  const displayDropoffTime = normalizeTimeString(dropoffTime);
 
   const costs = useMemo(() => {
     if (!car) return null;
@@ -856,12 +858,12 @@ export default function CheckoutStep() {
               <SummaryRow
                 icon="calendar-outline"
                 label="Pick-up"
-                value={`${pickupDate} · ${pickupTime}`}
+                value={`${pickupDate} · ${displayPickupTime}`}
               />
               <SummaryRow
                 icon="flag-outline"
                 label="Drop-off"
-                value={`${dropoffDate} · ${dropoffTime}`}
+                value={`${dropoffDate} · ${displayDropoffTime}`}
               />
               <SummaryRow
                 icon={
@@ -1330,7 +1332,7 @@ export default function CheckoutStep() {
                 marginTop: 14,
               }}
             >
-              By clicking on 'Agree and continue' you are agreeing to
+              By clicking on &apos;Agree and continue&apos; you are agreeing to
               the{" "}
               <Text
                 onPress={() => Linking.openURL("https://www.velorent.in/terms")}

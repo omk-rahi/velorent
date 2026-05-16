@@ -6,6 +6,7 @@ import { HStack } from "@/components/ui/hstack";
 import { Text } from "@/components/ui/text";
 import { VStack } from "@/components/ui/vstack";
 import { Colors } from "@/constants/theme";
+import { formatBookingDateTime } from "@/lib/booking-utils";
 import { supabase } from "@/lib/supabase";
 import { Ionicons } from "@expo/vector-icons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -62,24 +63,8 @@ const STATUS_CONFIG: Record<
 const CANCELLATION_CUTOFF_HOURS = 12;
 const CANCELLATION_CHARGE_AFTER_CUTOFF = 500;
 
-function fmtDate(str: string) {
-  return new Date(str).toLocaleDateString("en-IN", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
-}
-
-function fmtTime(str: string) {
-  return new Date(str).toLocaleTimeString("en-IN", {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: true,
-  });
-}
-
 function fmtDateTime(str: string) {
-  return `${fmtDate(str)}, ${fmtTime(str)}`;
+  return formatBookingDateTime(str);
 }
 
 function formatDisputeType(type?: string | null) {

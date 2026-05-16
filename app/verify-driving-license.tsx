@@ -21,12 +21,16 @@ import { router } from "expo-router";
 import { ArrowLeft, CheckCircle, ShieldCheck } from "lucide-react-native";
 import { useState } from "react";
 import { Alert, TouchableOpacity, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 
 type State = "idle" | "loading" | "success" | "error";
 
 export default function VerifyDrivingLicenseScreen() {
   const { verify } = useDigiLocker();
+  const insets = useSafeAreaInsets();
   const [state, setState] = useState<State>("idle");
   const [errorMsg, setErrorMsg] = useState("");
   const updateProfile = useUser((s) => s.updateProfile);
@@ -225,7 +229,12 @@ export default function VerifyDrivingLicenseScreen() {
         )}
       </VStack>
 
-      <VStack style={{ paddingHorizontal: 20, paddingBottom: 24 }}>
+      <VStack
+        style={{
+          paddingHorizontal: 20,
+          paddingBottom: Math.max(insets.bottom, 16) + 8,
+        }}
+      >
         <Button
           size="xl"
           isDisabled={state === "loading" || mutation.isPending}

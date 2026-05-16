@@ -1,26 +1,68 @@
 import type { CarAvailability } from "@/api/cars";
 
-export const TIME_SLOTS = [
-  "09:00 AM",
-  "10:00 AM",
-  "11:00 AM",
-  "12:00 PM",
-  "01:00 PM",
-  "02:00 PM",
-  "03:00 PM",
-  "04:00 PM",
-  "05:00 PM",
-  "06:00 PM",
-  "07:00 PM",
-  "08:00 PM",
-];
+export const TIME_SLOTS = Array.from({ length: 24 }, (_, hour) =>
+  `${String(hour).padStart(2, "0")}:00`,
+);
 
 const MONTHS: Record<string, number> = {
   Jan: 0, Feb: 1, Mar: 2, Apr: 3, May: 4, Jun: 5,
   Jul: 6, Aug: 7, Sep: 8, Oct: 9, Nov: 10, Dec: 11,
 };
 
-/** Parse a "14 Mar, 2026" date + "10:00 AM" time into a Date object */
+function parseTimeString(timeStr: string) {
+  const trimmed = String(timeStr ?? "").trim();
+  const twelveHourMatch = trimmed.match(/^(\d{1,2}):(\d{2})\s*([AP]M)$/i);
+
+  if (twelveHourMatch) {
+    let hours = Number(twelveHourMatch[1]);
+    const minutes = Number(twelveHourMatch[2]);
+    const period = twelveHourMatch[3].toUpperCase();
+
+    if (period === "PM" && hours !== 12) hours += 12;
+    if (period === "AM" && hours === 12) hours = 0;
+
+    return { hours, minutes };
+  }
+
+  const twentyFourHourMatch = trimmed.match(/^(\d{1,2}):(\d{2})$/);
+  if (twentyFourHourMatch) {
+    return {
+      hours: Number(twentyFourHourMatch[1]),
+      minutes: Number(twentyFourHourMatch[2]),
+    };
+  }
+
+  throw new Error(`Unsupported time format: ${timeStr}`);
+}
+
+export function normalizeTimeString(timeStr: string): string {
+  try {
+    const { hours, minutes } = parseTimeString(timeStr);
+    return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+  } catch {
+    return timeStr;
+  }
+}
+
+export function formatBookingTime(value: string | Date): string {
+  const date = value instanceof Date ? value : new Date(value);
+  return date.toLocaleTimeString("en-IN", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+}
+
+export function formatBookingDateTime(value: string | Date): string {
+  const date = value instanceof Date ? value : new Date(value);
+  return `${date.toLocaleDateString("en-IN", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  })}, ${formatBookingTime(date)}`;
+}
+
+/** Parse a "14 Mar, 2026" date + "10:00" or "10:00 AM" time into a Date object */
 export function parseDateTime(dateStr: string, timeStr: string): Date {
   try {
     const parts = dateStr.split(" ");
@@ -28,23 +70,17 @@ export function parseDateTime(dateStr: string, timeStr: string): Date {
     const monthStr = parts[1].replace(",", "");
     const year = parseInt(parts[2]);
     const month = MONTHS[monthStr];
-    const [time, period] = timeStr.split(" ");
-    let [hours, minutes] = time.split(":").map(Number);
-    if (period === "PM" && hours !== 12) hours += 12;
-    if (period === "AM" && hours === 12) hours = 0;
+    const { hours, minutes } = parseTimeString(timeStr);
     return new Date(year, month, day, hours, minutes, 0, 0);
   } catch {
     return new Date();
   }
 }
 
-/** Parse a "2026-03-14" ISO date string + "10:00 AM" time into a Date */
+/** Parse a "2026-03-14" ISO date string + "10:00" or "10:00 AM" time into a Date */
 function parseISODateAndTime(isoDate: string, timeStr: string): Date {
   const [year, month, day] = isoDate.split("-").map(Number);
-  const [time, period] = timeStr.split(" ");
-  let [hours, minutes] = time.split(":").map(Number);
-  if (period === "PM" && hours !== 12) hours += 12;
-  if (period === "AM" && hours === 12) hours = 0;
+  const { hours, minutes } = parseTimeString(timeStr);
   return new Date(year, month - 1, day, hours, minutes, 0, 0);
 }
 

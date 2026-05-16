@@ -39,9 +39,9 @@ const getDefaultState = () => {
   return {
     location: "Detecting...",
     pickupDate: formatDisplayDate(pickup),
-    pickupTime: "10:00 AM",
+    pickupTime: "10:00",
     dropoffDate: formatDisplayDate(dropoff),
-    dropoffTime: "10:00 AM",
+    dropoffTime: "10:00",
     deliveryMethod: 'pickup' as const,
     deliveryAddress: '',
     depositMethod: 'pay' as const,

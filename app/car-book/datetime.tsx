@@ -30,6 +30,7 @@ import {
   TIME_SLOTS,
   buildMarkedDates,
   formatDateToISO,
+  normalizeTimeString,
   getAvailableTimeSlots,
   parseDateTime,
 } from "@/lib/booking-utils";
@@ -401,6 +402,9 @@ export default function DatetimeStep() {
   }, [modalISO, openFor, availability, pickupDate, pickupTime]);
 
   const currentModalTime = openFor === "pickup" ? pickupTime : dropoffTime;
+  const displayPickupTime = normalizeTimeString(pickupTime);
+  const displayDropoffTime = normalizeTimeString(dropoffTime);
+  const displayCurrentModalTime = normalizeTimeString(currentModalTime);
   const isPickupModal = openFor === "pickup";
   const minDateISO = isPickupModal ? todayISO : minDropoffISO;
 
@@ -651,7 +655,7 @@ export default function DatetimeStep() {
                       {pickupDate}
                     </Text>
                     <Text style={{ fontSize: 12, color: Colors.light.icon }}>
-                      {pickupTime}
+                      {displayPickupTime}
                     </Text>
                   </VStack>
 
@@ -730,7 +734,7 @@ export default function DatetimeStep() {
                       {dropoffDate}
                     </Text>
                     <Text style={{ fontSize: 12, color: Colors.light.icon }}>
-                      {dropoffTime}
+                      {displayDropoffTime}
                     </Text>
                   </VStack>
 
@@ -1172,7 +1176,7 @@ export default function DatetimeStep() {
                       >
                         {TIME_SLOTS.map((slot) => {
                           const blocked = !modalSlots.includes(slot);
-                          const isSelected = currentModalTime === slot;
+                          const isSelected = displayCurrentModalTime === slot;
                           return (
                             <TouchableOpacity
                               key={slot}
