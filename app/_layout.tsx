@@ -1,4 +1,4 @@
-import { DigiLockerProvider } from "@cashfreepayments/react-native-digilocker";
+import { DigiLockerProvider } from "@/components/providers/digilocker-provider";
 import { DefaultTheme, ThemeProvider } from "@react-navigation/native";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";

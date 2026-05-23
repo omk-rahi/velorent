@@ -1,11 +1,20 @@
 import { Tabs } from "expo-router";
 import React from "react";
 import { Platform, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { CalendarCheck, Home, User } from "lucide-react-native";
 
 import { Colors } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
+
+/** 3-button nav on Android edge-to-edge often reports bottom inset as 0. */
+const ANDROID_BUTTON_NAV_INSET = 48;
+
+function getTabBarBottomInset(bottom: number) {
+  if (Platform.OS !== "android") return 0;
+  return bottom === 0 ? ANDROID_BUTTON_NAV_INSET : bottom;
+}
 
 type TabIconProps = {
   Icon: React.ComponentType<{
@@ -37,6 +46,9 @@ export default function TabLayout() {
   const colorScheme = useColorScheme() ?? "light";
   const theme = Colors[colorScheme];
   const isDark = colorScheme === "dark";
+  const { bottom } = useSafeAreaInsets();
+  const tabBarBottomInset = getTabBarBottomInset(bottom);
+  const tabBarBaseHeight = Platform.OS === "ios" ? 78 : 68;
 
   return (
     <Tabs
@@ -47,12 +59,11 @@ export default function TabLayout() {
         tabBarActiveTintColor: theme.tint,
         tabBarInactiveTintColor: theme.tabIconDefault,
         tabBarStyle: {
-          backgroundColor: isDark ? "#1E293B" : "#FFFFFF",
+          backgroundColor: "#FFFFFF",
           borderTopWidth: 1,
-          borderTopColor: isDark
-            ? "rgba(255, 255, 255, 0.06)"
-            : "rgba(15, 23, 42, 0.06)",
-          height: Platform.OS === "ios" ? 78 : 68,
+          borderTopColor: "rgba(15, 23, 42, 0.06)",
+          height: tabBarBaseHeight + tabBarBottomInset,
+          paddingBottom: tabBarBottomInset,
         },
         tabBarLabelStyle: {
           fontSize: 10,

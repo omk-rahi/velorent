@@ -15,7 +15,7 @@ import {
   extractIdentityField,
 } from "@/lib/verification-identity";
 import useUser from "@/store/use-user";
-import { useDigiLocker } from "@cashfreepayments/react-native-digilocker";
+import { useDigiLocker } from "@/components/providers/digilocker-provider";
 import { useMutation } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { ArrowLeft, CheckCircle, ShieldCheck } from "lucide-react-native";
