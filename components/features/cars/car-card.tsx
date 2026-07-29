@@ -200,6 +200,16 @@ export function CarCard({
   const rating = Number(car.average_rating || 0).toFixed(1);
   const reviews = car.review_count || 0;
   const isInService = car.is_active === false;
+  const distance =
+    typeof car.distance_km === "number" && Number.isFinite(car.distance_km)
+      ? car.distance_km
+      : null;
+  const distanceLabel =
+    distance !== null
+      ? distance < 1
+        ? `${Math.round(distance * 1000)} m away`
+        : `${distance.toFixed(1)} km away`
+      : null;
 
   const images: string[] =
     Array.isArray(car.car_images) && car.car_images.length > 0
@@ -336,6 +346,24 @@ export function CarCard({
                   </Text>
                 )}
               </HStack>
+              {distanceLabel && (
+                <HStack style={{ alignItems: "center", gap: 4 }}>
+                  <Ionicons
+                    name="location-outline"
+                    size={11}
+                    color={Colors.light.success}
+                  />
+                  <Text
+                    style={{
+                      fontSize: 11,
+                      fontWeight: "600",
+                      color: Colors.light.success,
+                    }}
+                  >
+                    {distanceLabel}
+                  </Text>
+                </HStack>
+              )}
             </VStack>
 
             <VStack style={{ alignItems: "flex-end", gap: 1 }}>

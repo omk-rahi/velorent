@@ -37,7 +37,7 @@ export function TopCars({ cars }) {
             letterSpacing: -0.3,
           }}
         >
-          Top Rated Cars
+          Cars Nearby You
         </Text>
 
         <Link href="/all-cars" asChild>

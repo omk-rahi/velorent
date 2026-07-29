@@ -6,6 +6,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { useLocalSearchParams, Stack } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 import { SearchIcon, Settings2Icon } from "lucide-react-native";
+import * as Location from "expo-location";
 
 import { Text } from "@/components/ui/text";
 import { VStack } from "@/components/ui/vstack";
@@ -18,6 +19,8 @@ import { CarCard } from "@/components/features/cars/car-card";
 import { CarFilterSheet, FilterState } from "@/components/features/cars/car-filter-sheet";
 import { Loader } from "@/components/shared/loader";
 import { Colors } from "@/constants/theme";
+
+const MIN_SEARCH_LENGTH = 2;
 
 export default function AllCarsScreen() {
   const { brand, brandId, brandName, q } = useLocalSearchParams<{
@@ -34,6 +37,12 @@ export default function AllCarsScreen() {
   const [searchQuery, setSearchQuery] = useState(() =>
     typeof qParam === "string" ? qParam : "",
   );
+  const [submittedSearchQuery, setSubmittedSearchQuery] =
+    useState(searchQuery);
+  const [searchedLocation, setSearchedLocation] = useState<{
+    latitude: number;
+    longitude: number;
+  } | null>(null);
   const [visibleIds, setVisibleIds] = useState<string[]>([]);
   const [filters, setFilters] = useState<FilterState>({});
   const filterSheetRef = useRef<BottomSheet>(null);
@@ -44,21 +53,83 @@ export default function AllCarsScreen() {
     );
   });
 
+  const { data: userLocation, isLoading: isLocationLoading } = useQuery({
+    queryKey: ["user-location"],
+    queryFn: async () => {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== "granted") return null;
+
+        const lastKnownLocation = await Location.getLastKnownPositionAsync();
+        const location =
+          lastKnownLocation ??
+          (await Location.getCurrentPositionAsync({
+            accuracy: Location.Accuracy.Balanced,
+          }));
+
+        return {
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude,
+        };
+      } catch {
+        return null;
+      }
+    },
+    staleTime: 1000 * 60 * 5,
+  });
+
+  const searchLocationForQuery = async (query: string) => {
+    if (query.length < MIN_SEARCH_LENGTH) {
+      setSearchedLocation(null);
+      return;
+    }
+
+    try {
+      const results = await Location.geocodeAsync(`${query}, Ahmedabad, Gujarat`);
+      const location = results[0];
+      setSearchedLocation(
+        location
+          ? {
+              latitude: location.latitude,
+              longitude: location.longitude,
+            }
+          : null,
+      );
+    } catch {
+      setSearchedLocation(null);
+    }
+  };
+
   useEffect(() => {
     if (typeof qParam === "string") {
       setSearchQuery(qParam);
+      setSubmittedSearchQuery(qParam);
+      searchLocationForQuery(qParam.trim());
       return;
     }
     if (brandParam) {
       setSearchQuery("");
+      setSubmittedSearchQuery("");
+      setSearchedLocation(null);
       return;
     }
     setSearchQuery("");
+    setSubmittedSearchQuery("");
+    setSearchedLocation(null);
   }, [qParam, brandParam]);
 
   const pageTitle = brandNameParam ?? brandParam
     ? `${(brandNameParam ?? brandParam)!} Cars`
     : "All Cars";
+  const commitSearchQuery = async () => {
+    const query = searchQuery.trim();
+    setSubmittedSearchQuery(query);
+
+    searchLocationForQuery(query);
+  };
+  const activeLocation = searchedLocation ?? userLocation;
+  const effectiveSearchQuery =
+    submittedSearchQuery.length >= MIN_SEARCH_LENGTH ? submittedSearchQuery : "";
 
   const {
     data: cars,
@@ -66,18 +137,29 @@ export default function AllCarsScreen() {
     error,
     refetch,
   } = useQuery({
-    queryKey: ["cars", brandIdParam ?? brandParam, searchQuery, filters],
+    queryKey: [
+      "cars",
+      brandIdParam ?? brandParam,
+      effectiveSearchQuery,
+      filters,
+      activeLocation?.latitude,
+      activeLocation?.longitude,
+    ],
     queryFn: () =>
       getCars({
         brand: brandParam,
         brandId: brandIdParam,
-        search: searchQuery,
+        search: searchedLocation ? "" : effectiveSearchQuery,
+        latitude: activeLocation?.latitude,
+        longitude: activeLocation?.longitude,
+        sortByDistance: true,
         ...filters,
       }),
+    enabled: !isLocationLoading,
   });
   const activeCarsCount = (cars ?? []).filter((car: any) => car?.is_active !== false).length;
 
-  if (isLoading) {
+  if (isLocationLoading || isLoading) {
     return (
       <View
         style={{
@@ -233,17 +315,18 @@ export default function AllCarsScreen() {
                   />
                 </InputSlot>
                 <InputField
-                  placeholder="Search any car..."
+                  placeholder="Search car or location..."
                   placeholderTextColor={Colors.light.iconMuted}
                   value={searchQuery}
                   onChangeText={setSearchQuery}
+                  onBlur={commitSearchQuery}
                   style={{ fontSize: 15, color: Colors.light.text }}
                 />
               </Input>
 
-              {searchQuery.length > 0 && (
+              {effectiveSearchQuery.length > 0 && (
                 <Text style={{ fontSize: 13, color: Colors.light.iconMuted }}>
-                  {cars?.length ?? 0} result{(cars?.length ?? 0) !== 1 ? "s" : ""} for &quot;{searchQuery}&quot;
+                  {cars?.length ?? 0} result{(cars?.length ?? 0) !== 1 ? "s" : ""} for &quot;{effectiveSearchQuery}&quot;
                 </Text>
               )}
             </VStack>

@@ -3,6 +3,11 @@ import { supabase } from "@/lib/supabase";
 export type Coupon = {
   id: string;
   code: string;
+  title: string;
+  description: string | null;
+  image_url: string | null;
+  bg_color: string | null;
+  accent_color: string | null;
   discount_type: "percentage" | "flat";
   discount_value: number;
   is_active: boolean;
@@ -11,6 +16,24 @@ export type Coupon = {
   min_booking_amount: number | null;
   per_customer_limit: number | null;
 };
+
+export async function getActiveCoupons(): Promise<Coupon[]> {
+  const now = new Date().toISOString();
+  const { data, error } = await supabase
+    .from("coupons")
+    .select("*")
+    .eq("is_active", true)
+    .lte("start_date", now)
+    .gte("end_date", now)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.warn("[coupons] failed to fetch offers:", error.message);
+    return [];
+  }
+
+  return (data ?? []) as Coupon[];
+}
 
 export async function getCouponByCode(code: string): Promise<Coupon | null> {
   const { data, error } = await supabase

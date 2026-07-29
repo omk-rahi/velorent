@@ -4,8 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Alert,
   KeyboardAvoidingView,
-  Linking,
   LayoutAnimation,
+  Linking,
   Modal,
   Platform,
   Pressable,
@@ -22,12 +22,12 @@ import {
 
 import { createBooking } from "@/api/bookings";
 import { getCarById } from "@/api/cars";
+import { createCashfreeOrder, verifyCashfreeOrder } from "@/api/cashfree";
 import {
   getCouponByCode,
   getCouponUsageCount,
   recordCouponUsage,
 } from "@/api/coupons";
-import { createCashfreeOrder, verifyCashfreeOrder } from "@/api/cashfree";
 import { BookingHeader } from "@/components/features/booking/booking-header";
 import { PriceRow } from "@/components/features/booking/price-row";
 import { StepTitle } from "@/components/features/booking/step-title";
@@ -64,7 +64,9 @@ const CASHFREE_CANCEL_ERROR_CODE = "action_cancelled";
 const PAYMENT_VERIFY_MAX_ATTEMPTS = 4;
 const PAYMENT_VERIFY_DELAY_MS = 2000;
 
-function resolveCashfreeEnvironment(orderEnvironment?: "SANDBOX" | "PRODUCTION") {
+function resolveCashfreeEnvironment(
+  orderEnvironment?: "SANDBOX" | "PRODUCTION",
+) {
   if (orderEnvironment === "PRODUCTION") return CFEnvironment.PRODUCTION;
   if (orderEnvironment === "SANDBOX") return CFEnvironment.SANDBOX;
   return CASHFREE_ENVIRONMENT;
@@ -145,10 +147,7 @@ function extractSuccessfulCashfreePayment(raw: any) {
         "",
     ),
     gatewayOrderId: String(
-      data?.order?.order_id ??
-        data?.order_id ??
-        root?.order_id ??
-        "",
+      data?.order?.order_id ?? data?.order_id ?? root?.order_id ?? "",
     ),
   };
 }
@@ -391,17 +390,7 @@ export default function CheckoutStep() {
       );
       return false;
     }
-    if (!profile.aadhaar_verified || !profile.dl_verified) {
-      Alert.alert(
-        "Verification Required",
-        "Please complete your Aadhaar and Driving License verification to proceed.",
-        [
-          { text: "Go to Profile", onPress: () => router.push("/(main)/profile") },
-          { text: "Cancel", style: "cancel" },
-        ],
-      );
-      return false;
-    }
+
     if (Platform.OS === "web") {
       Alert.alert(
         "Not Supported",
@@ -465,7 +454,9 @@ export default function CheckoutStep() {
       );
       const commissionBase = Math.max(
         0,
-        Number((costs.rentalCost + costs.deliveryCharge - costs.discount).toFixed(2)),
+        Number(
+          (costs.rentalCost + costs.deliveryCharge - costs.discount).toFixed(2),
+        ),
       );
       const safeCommissionAmount = Number(
         ((commissionBase * safeCommissionPercentage) / 100).toFixed(2),

@@ -905,7 +905,9 @@ export default function BookingDetailScreen() {
                     style={{
                       fontSize: 12,
                       fontWeight: "700",
-                      color: mapQuery ? Colors.light.tint : Colors.light.iconMuted,
+                      color: mapQuery
+                        ? Colors.light.tint
+                        : Colors.light.iconMuted,
                     }}
                   >
                     Open in Map

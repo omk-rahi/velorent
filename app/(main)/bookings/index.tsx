@@ -1,4 +1,5 @@
 import { getBookings } from "@/api/bookings";
+import { Button, ButtonText } from "@/components/ui/button";
 import { Heading } from "@/components/ui/heading";
 import { HStack } from "@/components/ui/hstack";
 import { Text } from "@/components/ui/text";
@@ -18,7 +19,7 @@ import {
   Flag,
   User,
 } from "lucide-react-native";
-import { useState } from "react";
+import React, { useState, useCallback } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -42,13 +43,32 @@ const STATUS_FILTERS = [
 
 type FilterValue = (typeof STATUS_FILTERS)[number]["value"];
 
-const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
+const STATUS_CONFIG: Record<
+  string,
+  { label: string; color: string; bg: string }
+> = {
   pending: { label: "Pending", color: "#B45309", bg: "rgba(245,158,11,0.1)" },
-  confirmed: { label: "Confirmed", color: Colors.light.tint, bg: "rgba(26,86,255,0.1)" },
-  ongoing: { label: "Ongoing", color: Colors.light.success, bg: "rgba(16,185,129,0.1)" },
-  completed: { label: "Completed", color: Colors.light.icon, bg: "rgba(100,116,139,0.1)" },
+  confirmed: {
+    label: "Confirmed",
+    color: Colors.light.tint,
+    bg: "rgba(26,86,255,0.1)",
+  },
+  ongoing: {
+    label: "Ongoing",
+    color: Colors.light.success,
+    bg: "rgba(16,185,129,0.1)",
+  },
+  completed: {
+    label: "Completed",
+    color: Colors.light.icon,
+    bg: "rgba(100,116,139,0.1)",
+  },
   rejected: { label: "Rejected", color: "#B91C1C", bg: "rgba(185,28,28,0.1)" },
-  cancelled: { label: "Cancelled", color: Colors.light.error, bg: "rgba(239,68,68,0.1)" },
+  cancelled: {
+    label: "Cancelled",
+    color: Colors.light.error,
+    bg: "rgba(239,68,68,0.1)",
+  },
 };
 
 function fmtDate(str: string) {
@@ -66,7 +86,8 @@ function fmtTime(str: string) {
 function getDepositDisplay(item: any) {
   const depositAmount = Number(item.deposit_amount ?? 0);
   const depositStatus = String(item.deposit_status ?? "").toLowerCase();
-  const isTwoWheelerCollateral = depositAmount <= 0 && depositStatus === "pending";
+  const isTwoWheelerCollateral =
+    depositAmount <= 0 && depositStatus === "pending";
 
   if (isTwoWheelerCollateral) {
     return {
@@ -82,7 +103,7 @@ function getDepositDisplay(item: any) {
   };
 }
 
-function BookingCard({ item }: { item: any }) {
+const BookingCard = React.memo(function BookingCard({ item }: { item: any }) {
   const cfg = STATUS_CONFIG[item.status] ?? STATUS_CONFIG.pending;
   const carName = item.car?.name ?? "Car";
   const regNo = item.car?.registration_number ?? "-";
@@ -123,17 +144,32 @@ function BookingCard({ item }: { item: any }) {
               resizeMode="cover"
             />
           ) : (
-            <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+            <View
+              style={{
+                flex: 1,
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
               <Car size={20} color={Colors.light.iconMuted} />
             </View>
           )}
         </View>
 
         <VStack style={{ flex: 1, gap: 2 }}>
-          <Text style={{ fontSize: 15, fontWeight: "700", color: "#0F172A" }} numberOfLines={1}>
+          <Text
+            style={{ fontSize: 15, fontWeight: "700", color: "#0F172A" }}
+            numberOfLines={1}
+          >
             {carName}
           </Text>
-          <Text style={{ fontSize: 12, color: Colors.light.iconMuted, fontWeight: "500" }}>
+          <Text
+            style={{
+              fontSize: 12,
+              color: Colors.light.iconMuted,
+              fontWeight: "500",
+            }}
+          >
             {regNo}
           </Text>
         </VStack>
@@ -152,29 +188,58 @@ function BookingCard({ item }: { item: any }) {
         </View>
       </HStack>
 
-      <View style={{ height: 1, backgroundColor: Colors.light.cardBorder, marginHorizontal: 14 }} />
+      <View
+        style={{
+          height: 1,
+          backgroundColor: Colors.light.cardBorder,
+          marginHorizontal: 14,
+        }}
+      />
 
       <VStack style={{ paddingHorizontal: 14, paddingVertical: 12, gap: 6 }}>
-        <HStack style={{ justifyContent: "space-between", alignItems: "center" }}>
+        <HStack
+          style={{ justifyContent: "space-between", alignItems: "center" }}
+        >
           <HStack style={{ alignItems: "center", gap: 6 }}>
             <User size={14} color={Colors.light.iconMuted} />
-            <Text style={{ fontSize: 13, fontWeight: "600", color: "#0F172A" }} numberOfLines={1}>
+            <Text
+              style={{ fontSize: 13, fontWeight: "600", color: "#0F172A" }}
+              numberOfLines={1}
+            >
               {hostName}
             </Text>
           </HStack>
-          <Text style={{ fontSize: 11, color: Colors.light.iconMuted, fontWeight: "500" }}>
+          <Text
+            style={{
+              fontSize: 11,
+              color: Colors.light.iconMuted,
+              fontWeight: "500",
+            }}
+          >
             {bookingRef}
           </Text>
         </HStack>
         <HStack style={{ alignItems: "center", gap: 6 }}>
           <Calendar size={13} color={Colors.light.iconMuted} />
-          <Text style={{ fontSize: 12, color: Colors.light.icon, fontWeight: "500" }}>
+          <Text
+            style={{
+              fontSize: 12,
+              color: Colors.light.icon,
+              fontWeight: "500",
+            }}
+          >
             {fmtDate(item.start_time)}, {fmtTime(item.start_time)}
           </Text>
         </HStack>
         <HStack style={{ alignItems: "center", gap: 6 }}>
           <Flag size={13} color={Colors.light.iconMuted} />
-          <Text style={{ fontSize: 12, color: Colors.light.icon, fontWeight: "500" }}>
+          <Text
+            style={{
+              fontSize: 12,
+              color: Colors.light.icon,
+              fontWeight: "500",
+            }}
+          >
             {fmtDate(item.end_time)}, {fmtTime(item.end_time)}
           </Text>
         </HStack>
@@ -192,14 +257,24 @@ function BookingCard({ item }: { item: any }) {
         }}
       >
         <VStack style={{ gap: 1 }}>
-          <Text style={{ fontSize: 11, color: Colors.light.iconMuted }}>Total Paid</Text>
+          <Text style={{ fontSize: 11, color: Colors.light.iconMuted }}>
+            Total Paid
+          </Text>
           <Text style={{ fontSize: 15, fontWeight: "700", color: "#0F172A" }}>
             Rs {Number(item.total_amount ?? 0).toLocaleString("en-IN")}
           </Text>
         </VStack>
-        <View style={{ width: 1, height: 28, backgroundColor: Colors.light.cardBorder }} />
+        <View
+          style={{
+            width: 1,
+            height: 28,
+            backgroundColor: Colors.light.cardBorder,
+          }}
+        />
         <VStack style={{ gap: 1, alignItems: "flex-end" }}>
-          <Text style={{ fontSize: 11, color: Colors.light.iconMuted }}>{depositDisplay.label}</Text>
+          <Text style={{ fontSize: 11, color: Colors.light.iconMuted }}>
+            {depositDisplay.label}
+          </Text>
           {depositDisplay.type === "collateral" ? (
             <View
               style={{
@@ -214,7 +289,13 @@ function BookingCard({ item }: { item: any }) {
               <Bike size={16} color={Colors.light.tint} />
             </View>
           ) : (
-            <Text style={{ fontSize: 15, fontWeight: "800", color: Colors.light.tint }}>
+            <Text
+              style={{
+                fontSize: 15,
+                fontWeight: "800",
+                color: Colors.light.tint,
+              }}
+            >
               {depositDisplay.value}
             </Text>
           )}
@@ -222,7 +303,7 @@ function BookingCard({ item }: { item: any }) {
       </View>
     </TouchableOpacity>
   );
-}
+});
 
 export default function BookingsScreen() {
   const [filter, setFilter] = useState<FilterValue>("all");
@@ -230,6 +311,12 @@ export default function BookingsScreen() {
   const [periodFilter, setPeriodFilter] = useState<string>("all");
   const [periodSheetOpen, setPeriodSheetOpen] = useState(false);
   const profile = useUser((u) => u.profile);
+  const isVerified =
+    profile?.aadhaar_verified === true && profile?.dl_verified === true;
+
+  const renderItem = useCallback(({ item }: { item: any }) => {
+    return <BookingCard item={item} />;
+  }, []);
 
   const { data, isLoading } = useQuery({
     queryKey: ["bookings", profile?.id],
@@ -277,7 +364,10 @@ export default function BookingsScreen() {
   const isFiltered = filter !== "all";
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#F7F8FC" }} edges={["top"]}>
+    <SafeAreaView
+      style={{ flex: 1, backgroundColor: "#F7F8FC" }}
+      edges={["top"]}
+    >
       <Heading
         size="2xl"
         style={{
@@ -319,7 +409,9 @@ export default function BookingsScreen() {
               borderRadius: 12,
               backgroundColor: "#fff",
               borderWidth: 1,
-              borderColor: btn.active ? Colors.light.tint : Colors.light.cardBorder,
+              borderColor: btn.active
+                ? Colors.light.tint
+                : Colors.light.cardBorder,
             }}
           >
             <Text
@@ -333,13 +425,72 @@ export default function BookingsScreen() {
             >
               {btn.label}
             </Text>
-            <ChevronDown size={14} color={btn.active ? Colors.light.tint : Colors.light.iconMuted} />
+            <ChevronDown
+              size={14}
+              color={btn.active ? Colors.light.tint : Colors.light.iconMuted}
+            />
           </TouchableOpacity>
         ))}
       </HStack>
 
+      {!isVerified && (
+        <VStack
+          style={{
+            backgroundColor: "#FEF2F2",
+            borderRadius: 16,
+            borderWidth: 1,
+            borderColor: "#FECACA",
+            padding: 16,
+            marginHorizontal: 20,
+            gap: 10,
+            marginBottom: 16,
+          }}
+        >
+          <HStack style={{ gap: 10, alignItems: "flex-start" }}>
+            <VStack style={{ flex: 1, gap: 4 }}>
+              <Text
+                style={{
+                  fontSize: 14,
+                  fontWeight: "700",
+                  color: "#991B1B",
+                }}
+              >
+                Identity Verification Required
+              </Text>
+              <Text
+                style={{
+                  fontSize: 13,
+                  color: "#7F1D1D",
+                  lineHeight: 19,
+                }}
+              >
+                You must complete your identity verification before picking up
+                your vehicle to avoid any delays.
+              </Text>
+            </VStack>
+          </HStack>
+          <Button
+            size="sm"
+            style={{
+              backgroundColor: "#DC2626",
+              borderRadius: 10,
+              alignSelf: "flex-start",
+            }}
+            onPress={() => router.push("/(main)/profile")}
+          >
+            <ButtonText
+              style={{ color: "#fff", fontWeight: "700", fontSize: 13 }}
+            >
+              Verify Now
+            </ButtonText>
+          </Button>
+        </VStack>
+      )}
+
       {isLoading ? (
-        <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+        <View
+          style={{ flex: 1, alignItems: "center", justifyContent: "center" }}
+        >
           <ActivityIndicator size="large" color={Colors.light.tint} />
         </View>
       ) : filtered.length === 0 ? (
@@ -364,10 +515,23 @@ export default function BookingsScreen() {
           >
             <CalendarX2 size={34} color={Colors.light.tint} />
           </View>
-          <Text style={{ fontSize: 17, fontWeight: "700", color: "#0F172A", marginBottom: 6 }}>
+          <Text
+            style={{
+              fontSize: 17,
+              fontWeight: "700",
+              color: "#0F172A",
+              marginBottom: 6,
+            }}
+          >
             No bookings {isFiltered ? `(${activeStatusLabel})` : "yet"}
           </Text>
-          <Text style={{ fontSize: 14, color: Colors.light.iconMuted, textAlign: "center" }}>
+          <Text
+            style={{
+              fontSize: 14,
+              color: Colors.light.iconMuted,
+              textAlign: "center",
+            }}
+          >
             {!isFiltered
               ? "Your bookings will appear here once you make one."
               : `No ${activeStatusLabel.toLowerCase()} bookings at the moment.`}
@@ -377,9 +541,13 @@ export default function BookingsScreen() {
         <FlatList
           data={filtered}
           keyExtractor={(item) => item.id}
-          renderItem={({ item }) => <BookingCard item={item} />}
+          renderItem={renderItem}
           contentContainerStyle={{ gap: 12, paddingBottom: 32 }}
           showsVerticalScrollIndicator={false}
+          initialNumToRender={5}
+          maxToRenderPerBatch={5}
+          windowSize={11}
+          removeClippedSubviews={true}
         />
       )}
 
@@ -390,7 +558,11 @@ export default function BookingsScreen() {
         onRequestClose={() => setPeriodSheetOpen(false)}
       >
         <Pressable
-          style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.35)", justifyContent: "flex-end" }}
+          style={{
+            flex: 1,
+            backgroundColor: "rgba(0,0,0,0.35)",
+            justifyContent: "flex-end",
+          }}
           onPress={() => setPeriodSheetOpen(false)}
         >
           <Pressable>
@@ -454,7 +626,13 @@ export default function BookingsScreen() {
                     >
                       {item.label}
                     </Text>
-                    {isActive && <Check size={16} color={Colors.light.tint} strokeWidth={2.5} />}
+                    {isActive && (
+                      <Check
+                        size={16}
+                        color={Colors.light.tint}
+                        strokeWidth={2.5}
+                      />
+                    )}
                   </TouchableOpacity>
                 );
               })}
@@ -470,7 +648,11 @@ export default function BookingsScreen() {
         onRequestClose={() => setSheetOpen(false)}
       >
         <Pressable
-          style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.35)", justifyContent: "flex-end" }}
+          style={{
+            flex: 1,
+            backgroundColor: "rgba(0,0,0,0.35)",
+            justifyContent: "flex-end",
+          }}
           onPress={() => setSheetOpen(false)}
         >
           <Pressable>
@@ -535,7 +717,13 @@ export default function BookingsScreen() {
                     >
                       {item.label}
                     </Text>
-                    {isActive && <Check size={16} color={Colors.light.tint} strokeWidth={2.5} />}
+                    {isActive && (
+                      <Check
+                        size={16}
+                        color={Colors.light.tint}
+                        strokeWidth={2.5}
+                      />
+                    )}
                   </TouchableOpacity>
                 );
               })}

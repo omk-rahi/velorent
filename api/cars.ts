@@ -26,7 +26,26 @@ export type Car = {
   image_url?: string;
   average_rating?: number;
   review_count?: number;
+  distance_km?: number;
 };
+
+function haversineKm(
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number,
+): number {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) ** 2;
+
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
 
 export async function getCars(filters?: {
   brand?: string;
@@ -35,6 +54,11 @@ export async function getCars(filters?: {
   minPrice?: number;
   maxPrice?: number;
   seats?: number;
+  latitude?: number;
+  longitude?: number;
+  limit?: number;
+  offset?: number;
+  sortByDistance?: boolean;
 }) {
   let query = supabase
     .from("cars")
@@ -44,6 +68,14 @@ export async function getCars(filters?: {
       car_brands (*),
       car_models (*),
       car_images (image_url, is_primary),
+      car_pickup_addresses!car_id (
+        address_line1,
+        city,
+        state,
+        pincode,
+        latitude,
+        longitude
+      ),
       car_reviews (rating)
     `,
     )
@@ -67,13 +99,35 @@ export async function getCars(filters?: {
     query = query.eq("vehicle_seat_capacity", filters.seats);
   }
 
-  const { data, error } = await query.order("created_at", { ascending: false });
+  query = query.order("created_at", { ascending: false });
+
+  if (filters?.limit !== undefined && !filters?.sortByDistance) {
+    const from = filters.offset ?? 0;
+    query = query.range(from, from + filters.limit - 1);
+  }
+
+  const { data, error } = await query;
 
   if (error) throw error;
 
   const finalData = (data ?? []).map((car: any) => {
     const primaryImage =
       car.car_images?.find((img: any) => img.is_primary) || car.car_images?.[0];
+    const pickupAddress = Array.isArray(car.car_pickup_addresses)
+      ? car.car_pickup_addresses[0]
+      : car.car_pickup_addresses;
+    const pickupLat =
+      typeof pickupAddress?.latitude === "number"
+        ? pickupAddress.latitude
+        : Number(pickupAddress?.latitude);
+    const pickupLon =
+      typeof pickupAddress?.longitude === "number"
+        ? pickupAddress.longitude
+        : Number(pickupAddress?.longitude);
+    const hasUserLocation =
+      filters?.latitude !== undefined && filters?.longitude !== undefined;
+    const hasPickupLocation =
+      Number.isFinite(pickupLat) && Number.isFinite(pickupLon);
 
     const ratings = car.car_reviews || [];
     const totalRating = ratings.reduce(
@@ -88,19 +142,82 @@ export async function getCars(filters?: {
       image_url: primaryImage?.image_url || car.image_url,
       average_rating: averageRating,
       review_count: ratings.length,
+      distance_km:
+        hasUserLocation && hasPickupLocation
+          ? haversineKm(
+              filters.latitude!,
+              filters.longitude!,
+              pickupLat,
+              pickupLon,
+            )
+          : undefined,
     };
   });
 
   if (filters?.search) {
     const searchLower = filters.search.toLowerCase();
-    return finalData.filter(
-      (car: any) =>
-        car.car_models.name.toLowerCase().includes(searchLower) ||
-        car.car_brands.name.toLowerCase().includes(searchLower),
+    const searchedData = finalData.filter((car: any) =>
+      matchesCarSearch(car, searchLower),
     );
+
+    const sortedData = filters?.sortByDistance
+      ? sortCarsByDistance(searchedData)
+      : searchedData;
+
+    return paginateCars(sortedData, filters);
   }
 
-  return finalData;
+  const sortedData = filters?.sortByDistance
+    ? sortCarsByDistance(finalData)
+    : finalData;
+
+  return paginateCars(sortedData, filters);
+}
+
+function sortCarsByDistance(cars: any[]) {
+  return [...cars].sort((a, b) => {
+    const aDistance = Number.isFinite(a.distance_km)
+      ? a.distance_km
+      : Number.POSITIVE_INFINITY;
+    const bDistance = Number.isFinite(b.distance_km)
+      ? b.distance_km
+      : Number.POSITIVE_INFINITY;
+
+    return aDistance - bDistance;
+  });
+}
+
+function matchesCarSearch(car: any, searchLower: string) {
+  const pickupAddresses = Array.isArray(car.car_pickup_addresses)
+    ? car.car_pickup_addresses
+    : [car.car_pickup_addresses].filter(Boolean);
+  const searchableValues = [
+    car.car_models?.name,
+    car.car_brands?.name,
+    ...pickupAddresses.flatMap((pickupAddress: any) => [
+      pickupAddress?.address_line1,
+      pickupAddress?.city,
+      pickupAddress?.state,
+      pickupAddress?.pincode,
+    ]),
+  ];
+
+  return searchableValues.some((value) =>
+    String(value ?? "").toLowerCase().includes(searchLower),
+  );
+}
+
+function paginateCars(
+  cars: any[],
+  filters?: {
+    limit?: number;
+    offset?: number;
+  },
+) {
+  if (filters?.limit === undefined) return cars;
+
+  const from = filters.offset ?? 0;
+  return cars.slice(from, from + filters.limit);
 }
 export async function getCarById(car_id: string) {
   const { data, error } = await supabase

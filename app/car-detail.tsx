@@ -1,11 +1,5 @@
 import React, { useState } from "react";
-import {
-  Modal,
-  Pressable,
-  ScrollView,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { Pressable, ScrollView, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -23,7 +17,6 @@ import useUser from "@/store/use-user";
 import { Ionicons } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
 import { router, Stack, useLocalSearchParams } from "expo-router";
-import { AlertTriangle, CreditCard, FileText } from "lucide-react-native";
 
 const FUEL_ICONS: Record<string, string> = {
   petrol: "flame-outline",
@@ -43,10 +36,7 @@ export default function CarDetail() {
 
   const handleBookNow = () => {
     if (isInService) return;
-    if (!aadhaarVerified || !dlVerified) {
-      setShowVerifyModal(true);
-      return;
-    }
+
     router.push({ pathname: "/car-book", params: { carId: car?.id } });
   };
 
@@ -434,142 +424,6 @@ export default function CarDetail() {
           </View>
         </View>
       </GestureHandlerRootView>
-
-      {/* Verification required modal */}
-      <Modal
-        visible={showVerifyModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowVerifyModal(false)}
-      >
-        <Pressable
-          style={{
-            flex: 1,
-            backgroundColor: "rgba(0,0,0,0.5)",
-            justifyContent: "flex-end",
-          }}
-          onPress={() => setShowVerifyModal(false)}
-        >
-          <Pressable
-            style={{
-              backgroundColor: "#fff",
-              borderTopLeftRadius: 28,
-              borderTopRightRadius: 28,
-              padding: 24,
-              paddingBottom: insets.bottom > 0 ? insets.bottom + 16 : 32,
-            }}
-            onPress={() => {}}
-          >
-            <VStack style={{ gap: 20 }}>
-              <HStack style={{ alignItems: "center", gap: 12 }}>
-                <View
-                  style={{
-                    width: 48,
-                    height: 48,
-                    borderRadius: 14,
-                    backgroundColor: "#FFFBEB",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  <AlertTriangle size={24} color="#D97706" />
-                </View>
-                <VStack style={{ flex: 1, gap: 2 }}>
-                  <Text
-                    style={{
-                      fontSize: 17,
-                      fontWeight: "700",
-                      color: Colors.light.text,
-                    }}
-                  >
-                    Verify Your Profile
-                  </Text>
-                  <Text style={{ fontSize: 13, color: Colors.light.iconMuted }}>
-                    Required before making a booking
-                  </Text>
-                </VStack>
-              </HStack>
-
-              <VStack style={{ gap: 10 }}>
-                {!aadhaarVerified && (
-                  <HStack
-                    style={{
-                      alignItems: "center",
-                      gap: 12,
-                      backgroundColor: "#FEF2F2",
-                      borderRadius: 14,
-                      padding: 14,
-                    }}
-                  >
-                    <FileText size={18} color="#DC2626" />
-                    <VStack style={{ flex: 1, gap: 1 }}>
-                      <Text
-                        style={{
-                          fontSize: 14,
-                          fontWeight: "600",
-                          color: Colors.light.text,
-                        }}
-                      >
-                        Aadhaar Verification
-                      </Text>
-                      <Text style={{ fontSize: 12, color: "#DC2626" }}>
-                        Not verified
-                      </Text>
-                    </VStack>
-                  </HStack>
-                )}
-                {!dlVerified && (
-                  <HStack
-                    style={{
-                      alignItems: "center",
-                      gap: 12,
-                      backgroundColor: "#FEF2F2",
-                      borderRadius: 14,
-                      padding: 14,
-                    }}
-                  >
-                    <CreditCard size={18} color="#DC2626" />
-                    <VStack style={{ flex: 1, gap: 1 }}>
-                      <Text
-                        style={{
-                          fontSize: 14,
-                          fontWeight: "600",
-                          color: Colors.light.text,
-                        }}
-                      >
-                        Driving License
-                      </Text>
-                      <Text style={{ fontSize: 12, color: "#DC2626" }}>
-                        Not verified
-                      </Text>
-                    </VStack>
-                  </HStack>
-                )}
-              </VStack>
-
-              <VStack style={{ gap: 10 }}>
-                <Button
-                  size="xl"
-                  onPress={() => {
-                    setShowVerifyModal(false);
-                    router.push("/(main)/profile");
-                  }}
-                >
-                  <ButtonText>Go to Profile & Verify</ButtonText>
-                </Button>
-                <TouchableOpacity
-                  onPress={() => setShowVerifyModal(false)}
-                  style={{ alignItems: "center", paddingVertical: 8 }}
-                >
-                  <Text style={{ fontSize: 14, color: Colors.light.iconMuted }}>
-                    Not now
-                  </Text>
-                </TouchableOpacity>
-              </VStack>
-            </VStack>
-          </Pressable>
-        </Pressable>
-      </Modal>
     </>
   );
 }

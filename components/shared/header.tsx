@@ -1,8 +1,15 @@
 import * as Location from "expo-location";
 import { useRouter } from "expo-router";
-import { MapPinIcon, SearchIcon } from "lucide-react-native";
+import { ChevronDownIcon, MapPinIcon, SearchIcon } from "lucide-react-native";
 import { useEffect, useState } from "react";
 import { TouchableOpacity, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import Svg, {
+  Defs,
+  LinearGradient as SvgLinearGradient,
+  Rect,
+  Stop,
+} from "react-native-svg";
 
 import {
   Avatar,
@@ -21,6 +28,7 @@ export function Header() {
   const { location, setLocation } = useBookingStore();
   const profile = useUser((user) => user.profile);
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [searchText, setSearchText] = useState("");
 
   useEffect(() => {
@@ -47,7 +55,7 @@ export function Header() {
         }
       })();
     }
-  }, []);
+  }, [location, setLocation]);
 
   const handleSubmitSearch = () => {
     const query = searchText.trim();
@@ -59,53 +67,97 @@ export function Header() {
   };
 
   return (
-    <VStack style={{ gap: 20 }}>
+    <VStack
+      style={{
+        gap: 14,
+        marginHorizontal: -20,
+        marginTop: -16 - insets.top,
+        paddingHorizontal: 20,
+        paddingTop: 14 + insets.top,
+        paddingBottom: 18,
+        overflow: "hidden",
+        backgroundColor: Colors.light.background,
+      }}
+    >
+      <View
+        pointerEvents="none"
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          right: 0,
+          height: 178 + insets.top,
+          borderBottomLeftRadius: 28,
+          borderBottomRightRadius: 28,
+          overflow: "hidden",
+        }}
+      >
+        <Svg width="100%" height="100%" preserveAspectRatio="none">
+          <Defs>
+            <SvgLinearGradient
+              id="headerGradient"
+              x1="0%"
+              y1="0%"
+              x2="0%"
+              y2="100%"
+            >
+              <Stop offset="0" stopColor={Colors.light.tint} />
+              <Stop offset="0.58" stopColor="#3B6FF8" />
+              <Stop offset="1" stopColor="#8EB5FF" />
+            </SvgLinearGradient>
+          </Defs>
+          <Rect width="100%" height="100%" fill="url(#headerGradient)" />
+        </Svg>
+      </View>
       <HStack style={{ alignItems: "center", justifyContent: "space-between" }}>
-        <VStack style={{ gap: 4 }}>
+        <VStack style={{ flex: 1, gap: 8, marginRight: 14 }}>
           <Text
+            numberOfLines={1}
             style={{
-              fontSize: 12,
-              color: Colors.light.iconMuted,
-              fontWeight: "600",
-              letterSpacing: 1,
-              textTransform: "uppercase",
+              color: "#FFFFFF",
+              fontSize: 27,
+              fontWeight: "900",
+              letterSpacing: 0,
             }}
           >
-            Your Location
+            Velorent
           </Text>
-
-          <HStack style={{ alignItems: "center", gap: 6 }}>
-            <MapPinIcon size={15} color={Colors.light.tint} />
-            <Text
+          <TouchableOpacity activeOpacity={0.8}>
+            <HStack
               style={{
-                fontSize: 17,
-                fontWeight: "800",
-                color: Colors.light.text,
-                letterSpacing: -0.3,
+                alignItems: "center",
+                alignSelf: "flex-start",
+                backgroundColor: "rgba(255,255,255,0.14)",
+                borderRadius: 18,
+                gap: 6,
+                maxWidth: "100%",
+                paddingHorizontal: 10,
+                paddingVertical: 6,
               }}
             >
-              {location}
-            </Text>
-          </HStack>
-
-          {/* Brand accent line */}
-          <View
-            style={{
-              marginTop: 4,
-              width: 28,
-              height: 3,
-              borderRadius: 2,
-              backgroundColor: Colors.light.tint,
-            }}
-          />
+              <MapPinIcon size={14} color="#FFFFFF" />
+              <Text
+                numberOfLines={1}
+                style={{
+                  color: "#EAF1FF",
+                  flexShrink: 1,
+                  fontSize: 12,
+                  fontWeight: "800",
+                }}
+              >
+                {location}
+              </Text>
+              <ChevronDownIcon size={14} color="#EAF1FF" />
+            </HStack>
+          </TouchableOpacity>
         </VStack>
 
         <TouchableOpacity activeOpacity={0.8}>
           <Avatar
             size="md"
             style={{
-              borderWidth: 2.5,
-              borderColor: Colors.light.tint,
+              borderWidth: 2,
+              borderColor: "rgba(255,255,255,0.85)",
             }}
           >
             <AvatarFallbackText>
@@ -123,40 +175,43 @@ export function Header() {
         </TouchableOpacity>
       </HStack>
 
-      <Input
-        variant="outline"
-        size="xl"
-        style={{
-          borderRadius: 16,
-          borderColor: "transparent",
-          backgroundColor: Colors.light.card,
-          height: 52,
-          shadowColor: "#1A56FF",
-          shadowOffset: { width: 0, height: 1 },
-          shadowOpacity: 0.02,
-          shadowRadius: 8,
-          elevation: 1,
-        }}
-      >
-        <InputSlot style={{ paddingLeft: 14 }}>
-          <InputIcon
-            as={SearchIcon}
-            style={{ color: Colors.light.iconMuted }}
-          />
-        </InputSlot>
-        <InputField
-          placeholder="Search any car..."
-          placeholderTextColor={Colors.light.iconMuted}
-          value={searchText}
-          returnKeyType="search"
-          onChangeText={setSearchText}
-          onSubmitEditing={handleSubmitSearch}
+      <VStack>
+        <Input
+          variant="outline"
+          size="lg"
           style={{
-            fontSize: 15,
-            color: Colors.light.text,
+            borderRadius: 16,
+            borderColor: "rgba(255,255,255,0.9)",
+            backgroundColor: Colors.light.card,
+            height: 48,
+            shadowColor: "#0F172A",
+            shadowOffset: { width: 0, height: 5 },
+            shadowOpacity: 0.12,
+            shadowRadius: 14,
+            elevation: 3,
           }}
-        />
-      </Input>
+        >
+          <InputSlot style={{ paddingLeft: 14 }}>
+            <InputIcon
+              as={SearchIcon}
+              style={{ color: Colors.light.tint }}
+            />
+          </InputSlot>
+          <InputField
+            placeholder="Search cars, brands or places"
+            placeholderTextColor={Colors.light.iconMuted}
+            value={searchText}
+            returnKeyType="search"
+            onChangeText={setSearchText}
+            onSubmitEditing={handleSubmitSearch}
+            style={{
+              color: Colors.light.text,
+              fontSize: 14,
+              fontWeight: "600",
+            }}
+          />
+        </Input>
+      </VStack>
     </VStack>
   );
 }
