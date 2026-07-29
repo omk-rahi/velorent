@@ -212,20 +212,20 @@ export default function CheckoutStep() {
     const deposit = depositMethod === "pay" ? car.deposit_amount || 0 : 0;
     const deliveryCharge =
       deliveryMethod === "delivery" ? car.delivery_rate || 0 : 0;
-    const subtotal = rentalCost + deposit + deliveryCharge;
+    // Coupon applies only to rental, never to delivery or security deposit
     const discount = appliedCoupon
       ? appliedCoupon.type === "percentage"
-        ? subtotal * (appliedCoupon.value / 100)
+        ? rentalCost * (appliedCoupon.value / 100)
         : appliedCoupon.value
       : 0;
-    const cappedDiscount = Math.min(discount, subtotal);
+    const cappedDiscount = Math.min(discount, rentalCost);
     return {
       hours,
       rentalCost,
       deposit,
       deliveryCharge,
       discount: cappedDiscount,
-      total: subtotal - cappedDiscount,
+      total: rentalCost - cappedDiscount + deliveryCharge + deposit,
     };
   }, [
     car,
@@ -265,7 +265,7 @@ export default function CheckoutStep() {
       // Validate minimum booking amount
       if (
         coupon.min_booking_amount &&
-        costs.rentalCost + costs.deliveryCharge < coupon.min_booking_amount
+        costs.rentalCost < coupon.min_booking_amount
       ) {
         setAppliedCoupon(null);
         setCouponError(
