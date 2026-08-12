@@ -3,86 +3,75 @@ import { supabase } from "@/lib/supabase";
 
 WebBrowser.maybeCompleteAuthSession();
 
-// The redirect URI must EXACTLY match one of the allowed redirect URLs
-// configured in your Supabase Dashboard → Authentication → URL Configuration.
-// Add "velorentnative://auth-callback" to the allowed redirect URLs list.
+// The redirect URI must exactly match an allowed Supabase redirect URL.
 const REDIRECT_URI = "velorentnative://auth-callback";
 
-// Supabase sends tokens in the URL hash fragment (#access_token=...&refresh_token=...)
-// This helper extracts them from both hash and query string segments.
-function extractTokensFromUrl(url: string): { access_token?: string; refresh_token?: string } {
+// Supabase can return OAuth params in either the hash fragment or query string.
+export function extractOAuthParamsFromUrl(url: string): {
+  access_token?: string;
+  refresh_token?: string;
+  error?: string;
+  error_description?: string;
+} {
   const params: Record<string, string> = {};
 
-  // Try hash fragment first (Supabase implicit flow default)
   const hashIndex = url.indexOf("#");
   const fragment = hashIndex !== -1 ? url.slice(hashIndex + 1) : "";
   if (fragment) {
     fragment.split("&").forEach((pair) => {
       const [key, value] = pair.split("=");
-      if (key && value) params[key] = decodeURIComponent(value.replace(/\+/g, " "));
+      if (key && value) {
+        params[key] = decodeURIComponent(value.replace(/\+/g, " "));
+      }
     });
   }
 
-  // Also parse query string (PKCE flow)
   const queryIndex = url.indexOf("?");
   const hashOrEnd = hashIndex !== -1 ? hashIndex : url.length;
-  const queryString = queryIndex !== -1 ? url.slice(queryIndex + 1, hashOrEnd) : "";
+  const queryString =
+    queryIndex !== -1 ? url.slice(queryIndex + 1, hashOrEnd) : "";
   if (queryString) {
     queryString.split("&").forEach((pair) => {
       const [key, value] = pair.split("=");
-      if (key && value) params[key] = decodeURIComponent(value.replace(/\+/g, " "));
+      if (key && value) {
+        params[key] = decodeURIComponent(value.replace(/\+/g, " "));
+      }
     });
   }
 
   return {
     access_token: params["access_token"],
     refresh_token: params["refresh_token"],
+    error: params["error"],
+    error_description: params["error_description"],
   };
 }
 
-export const signInWithOAuth = async (provider: "google" | "facebook") => {
-  // 1. Get the OAuth login URL from Supabase with our app's redirect URI
-  const { data, error } = await supabase.auth.signInWithOAuth({
-    provider,
-    options: {
-      redirectTo: REDIRECT_URI,
-      skipBrowserRedirect: true,
-    },
-  });
+export const completeOAuthSignIn = async (url: string) => {
+  const { access_token, refresh_token, error, error_description } =
+    extractOAuthParamsFromUrl(url);
 
-  if (error) throw error;
-  if (!data?.url) throw new Error("No login URL returned from Supabase");
-
-  // 2. Open the WebBrowser — it will close automatically when Supabase
-  //    redirects back to "velorentnative://auth-callback"
-  const result = await WebBrowser.openAuthSessionAsync(data.url, REDIRECT_URI);
-
-  if (result.type !== "success" || !result.url) {
-    // User cancelled or browser was dismissed — not an error
-    return null;
+  if (error) {
+    throw new Error(error_description || error);
   }
 
-  // 3. Extract tokens from the redirect URL
-  const { access_token, refresh_token } = extractTokensFromUrl(result.url);
-
   if (!access_token || !refresh_token) {
-    console.error("OAuth redirect URL (no tokens found):", result.url);
+    console.error("OAuth redirect URL (no tokens found):", url);
     throw new Error(
       "Sign-in failed: tokens were not returned. " +
-      "Ensure 'velorentnative://auth-callback' is added to " +
-      "Supabase Dashboard → Authentication → URL Configuration → Redirect URLs."
+        "Ensure 'velorentnative://auth-callback' is added to " +
+        "Supabase Dashboard -> Authentication -> URL Configuration -> Redirect URLs.",
     );
   }
 
-  // 4. Exchange tokens for a Supabase session
-  const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
-    access_token,
-    refresh_token,
-  });
+  const { data: sessionData, error: sessionError } =
+    await supabase.auth.setSession({
+      access_token,
+      refresh_token,
+    });
 
   if (sessionError) throw sessionError;
 
-  // 5. Ensure a row exists in public.profiles (first-time social sign-in)
   if (sessionData?.user) {
     try {
       const { data: profile } = await supabase
@@ -115,6 +104,27 @@ export const signInWithOAuth = async (provider: "google" | "facebook") => {
   }
 
   return sessionData;
+};
+
+export const signInWithOAuth = async (provider: "google" | "facebook") => {
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider,
+    options: {
+      redirectTo: REDIRECT_URI,
+      skipBrowserRedirect: true,
+    },
+  });
+
+  if (error) throw error;
+  if (!data?.url) throw new Error("No login URL returned from Supabase");
+
+  const result = await WebBrowser.openAuthSessionAsync(data.url, REDIRECT_URI);
+
+  if (result.type !== "success" || !result.url) {
+    return null;
+  }
+
+  return completeOAuthSignIn(result.url);
 };
 
 export const sendPhoneOtp = async (phone: string) => {

@@ -122,11 +122,11 @@ export default function RootLayout() {
         if (!isMounted) return;
 
         setSession(session);
-        if (session) {
-          await loadProfile(session);
-        }
+        await loadProfile(session);
       } catch (e) {
         console.error("Auth init failed", e);
+        clearProfile();
+        if (isMounted) setProfileReady(true);
       } finally {
         if (isMounted) {
           setAppReady(true);
@@ -155,14 +155,16 @@ export default function RootLayout() {
   const hasPhone = profile ? Boolean(profile.phone) : false;
 
   useEffect(() => {
-    if (appReady && profileReady) {
-      SplashScreen.hideAsync();
-    }
-  }, [appReady, profileReady]);
+    SplashScreen.hideAsync();
+  }, []);
 
   // Only block rendering during cold start — never block on subsequent auth changes
   if (!appReady) {
-    return null;
+    return (
+      <View style={styles.loadingOverlay}>
+        <ActivityIndicator size="large" color={Colors.light.tint} />
+      </View>
+    );
   }
 
   return (

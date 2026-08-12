@@ -69,7 +69,9 @@ export default function LoginScreen() {
   const { mutate: sendOTP, status, error } = useSendOTP();
   const [userNotFound, setUserNotFound] = useState(false);
   const [checking, setChecking] = useState(false);
-  const [socialLoading, setSocialLoading] = useState<"google" | "facebook" | null>(null);
+  const [socialLoading, setSocialLoading] = useState<
+    "google" | "facebook" | null
+  >(null);
   const [socialError, setSocialError] = useState<string | null>(null);
 
   const handleSocialLogin = async (provider: "google" | "facebook") => {
@@ -256,7 +258,9 @@ export default function LoginScreen() {
               <Button
                 variant="outline"
                 size="xl"
-                isDisabled={socialLoading !== null || status === "pending" || checking}
+                isDisabled={
+                  socialLoading !== null || status === "pending" || checking
+                }
                 onPress={() => handleSocialLogin("google")}
                 style={{
                   borderRadius: 16,
@@ -271,16 +275,26 @@ export default function LoginScreen() {
                   ) : (
                     <GoogleIcon size={20} />
                   )}
-                  <ButtonText style={{ fontWeight: "600", fontSize: 16, color: "#1E293B" }}>
-                    {socialLoading === "google" ? "Connecting Google..." : "Continue with Google"}
+                  <ButtonText
+                    style={{
+                      fontWeight: "600",
+                      fontSize: 16,
+                      color: "#1E293B",
+                    }}
+                  >
+                    {socialLoading === "google"
+                      ? "Connecting Google..."
+                      : "Continue with Google"}
                   </ButtonText>
                 </HStack>
               </Button>
 
-              {/* <Button
+              <Button
                 variant="outline"
                 size="xl"
-                isDisabled={socialLoading !== null || status === "pending" || checking}
+                isDisabled={
+                  socialLoading !== null || status === "pending" || checking
+                }
                 onPress={() => handleSocialLogin("facebook")}
                 style={{
                   borderRadius: 16,
@@ -295,11 +309,19 @@ export default function LoginScreen() {
                   ) : (
                     <FacebookIcon size={20} />
                   )}
-                  <ButtonText style={{ fontWeight: "600", fontSize: 16, color: "#1E293B" }}>
-                    {socialLoading === "facebook" ? "Connecting Facebook..." : "Continue with Facebook"}
+                  <ButtonText
+                    style={{
+                      fontWeight: "600",
+                      fontSize: 16,
+                      color: "#1E293B",
+                    }}
+                  >
+                    {socialLoading === "facebook"
+                      ? "Connecting Facebook..."
+                      : "Continue with Facebook"}
                   </ButtonText>
                 </HStack>
-              </Button> */}
+              </Button>
             </VStack>
 
             {socialError && (
@@ -313,7 +335,12 @@ export default function LoginScreen() {
           <View className="px-5 pb-6 gap-4">
             <Button
               size="xl"
-              isDisabled={phone.length !== 10 || status === "pending" || checking || socialLoading !== null}
+              isDisabled={
+                phone.length !== 10 ||
+                status === "pending" ||
+                checking ||
+                socialLoading !== null
+              }
               onPress={onSubmit}
               style={{ borderRadius: 16 }}
             >

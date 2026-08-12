@@ -64,7 +64,9 @@ export default function RegisterWithOTP() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
-  const [socialLoading, setSocialLoading] = useState<"google" | "facebook" | null>(null);
+  const [socialLoading, setSocialLoading] = useState<
+    "google" | "facebook" | null
+  >(null);
   const [socialError, setSocialError] = useState<string | null>(null);
 
   const handleSocialLogin = async (provider: "google" | "facebook") => {
@@ -257,7 +259,9 @@ export default function RegisterWithOTP() {
           <View className="px-5 pb-6 gap-4">
             <Button
               size="xl"
-              isDisabled={!isFormValid || status === "pending" || socialLoading !== null}
+              isDisabled={
+                !isFormValid || status === "pending" || socialLoading !== null
+              }
               onPress={handleSubmit}
               style={{ borderRadius: 16 }}
             >
@@ -298,12 +302,20 @@ export default function RegisterWithOTP() {
                   ) : (
                     <GoogleIcon size={20} />
                   )}
-                  <ButtonText style={{ fontWeight: "600", fontSize: 16, color: "#1E293B" }}>
-                    {socialLoading === "google" ? "Connecting Google..." : "Continue with Google"}
+                  <ButtonText
+                    style={{
+                      fontWeight: "600",
+                      fontSize: 16,
+                      color: "#1E293B",
+                    }}
+                  >
+                    {socialLoading === "google"
+                      ? "Connecting Google..."
+                      : "Continue with Google"}
                   </ButtonText>
                 </HStack>
               </Button>
-{/* 
+
               <Button
                 variant="outline"
                 size="xl"
@@ -322,11 +334,19 @@ export default function RegisterWithOTP() {
                   ) : (
                     <FacebookIcon size={20} />
                   )}
-                  <ButtonText style={{ fontWeight: "600", fontSize: 16, color: "#1E293B" }}>
-                    {socialLoading === "facebook" ? "Connecting Facebook..." : "Continue with Facebook"}
+                  <ButtonText
+                    style={{
+                      fontWeight: "600",
+                      fontSize: 16,
+                      color: "#1E293B",
+                    }}
+                  >
+                    {socialLoading === "facebook"
+                      ? "Connecting Facebook..."
+                      : "Continue with Facebook"}
                   </ButtonText>
                 </HStack>
-              </Button> */}
+              </Button>
             </VStack>
 
             {socialError && (
