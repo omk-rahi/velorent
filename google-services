@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "793485855926",
+    "project_id": "velorent-ed1cd",
+    "storage_bucket": "velorent-ed1cd.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:793485855926:android:7b96835417b0f3d1092a17",
+        "android_client_info": {
+          "package_name": "com.velorent.pvt.velorentpvt"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBWsBvHz2udbw0pyCMN1PcBwSUlek9oPNE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

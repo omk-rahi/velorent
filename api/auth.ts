@@ -1,13 +1,12 @@
-import * as WebBrowser from "expo-web-browser";
 import { supabase } from "@/lib/supabase";
+import * as WebBrowser from "expo-web-browser";
 
 WebBrowser.maybeCompleteAuthSession();
 
-// The redirect URI must exactly match an allowed Supabase redirect URL.
 const REDIRECT_URI = "velorentnative://auth-callback";
 
-// Supabase can return OAuth params in either the hash fragment or query string.
 export function extractOAuthParamsFromUrl(url: string): {
+  code?: string;
   access_token?: string;
   refresh_token?: string;
   error?: string;
@@ -40,6 +39,7 @@ export function extractOAuthParamsFromUrl(url: string): {
   }
 
   return {
+    code: params["code"],
     access_token: params["access_token"],
     refresh_token: params["refresh_token"],
     error: params["error"],
@@ -48,29 +48,37 @@ export function extractOAuthParamsFromUrl(url: string): {
 }
 
 export const completeOAuthSignIn = async (url: string) => {
-  const { access_token, refresh_token, error, error_description } =
+  const { code, access_token, refresh_token, error, error_description } =
     extractOAuthParamsFromUrl(url);
 
   if (error) {
     throw new Error(error_description || error);
   }
 
-  if (!access_token || !refresh_token) {
-    console.error("OAuth redirect URL (no tokens found):", url);
-    throw new Error(
-      "Sign-in failed: tokens were not returned. " +
-        "Ensure 'velorentnative://auth-callback' is added to " +
-        "Supabase Dashboard -> Authentication -> URL Configuration -> Redirect URLs.",
-    );
-  }
+  let sessionData;
 
-  const { data: sessionData, error: sessionError } =
-    await supabase.auth.setSession({
+  if (code) {
+    const { data, error: exchangeError } =
+      await supabase.auth.exchangeCodeForSession(code);
+
+    if (exchangeError) throw exchangeError;
+    sessionData = data;
+  } else if (access_token && refresh_token) {
+    const { data, error: sessionError } = await supabase.auth.setSession({
       access_token,
       refresh_token,
     });
 
-  if (sessionError) throw sessionError;
+    if (sessionError) throw sessionError;
+    sessionData = data;
+  } else {
+    console.error("OAuth redirect URL (no tokens found):", url);
+    throw new Error(
+      "Sign-in failed: the auth code or tokens were not returned. " +
+        "Ensure 'velorentnative://auth-callback' is added to " +
+        "Supabase Dashboard -> Authentication -> URL Configuration -> Redirect URLs.",
+    );
+  }
 
   if (sessionData?.user) {
     try {
@@ -95,7 +103,10 @@ export const completeOAuthSignIn = async (url: string) => {
           updated_at: new Date().toISOString(),
         });
         if (insertError) {
-          console.error("Failed to create profile for OAuth user:", insertError);
+          console.error(
+            "Failed to create profile for OAuth user:",
+            insertError,
+          );
         }
       }
     } catch (profileErr) {

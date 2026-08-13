@@ -8,6 +8,7 @@ import { GluestackUIProvider } from "@/components/ui/gluestack-ui-provider";
 import * as SplashScreen from "expo-splash-screen";
 
 import "@/global.css";
+import { useRegisterPushNotifications } from "@/hooks/use-register-push-notifications";
 import { supabase } from "@/lib/supabase";
 import useUser from "@/store/use-user";
 
@@ -31,6 +32,8 @@ export default function RootLayout() {
   const [appReady, setAppReady] = useState(false);
   // Tracks whether the profile load attempt has completed (success or failure)
   const [profileReady, setProfileReady] = useState(false);
+
+  useRegisterPushNotifications(session);
 
   useEffect(() => {
     let isMounted = true;
